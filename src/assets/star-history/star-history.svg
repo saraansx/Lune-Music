@@ -24,23 +24,23 @@
       <line x1="90" y1="330.0" x2="740" y2="330.0" class="grid" opacity="0.6" />
       <text x="75" y="334.0" text-anchor="end" class="axis-text">0</text>
     
-      <line x1="90" y1="286.7" x2="740" y2="286.7" class="grid" opacity="0.6" />
-      <text x="75" y="290.7" text-anchor="end" class="axis-text">20</text>
+      <line x1="90" y1="287.3" x2="740" y2="287.3" class="grid" opacity="0.6" />
+      <text x="75" y="291.3" text-anchor="end" class="axis-text">23</text>
     
-      <line x1="90" y1="243.3" x2="740" y2="243.3" class="grid" opacity="0.6" />
-      <text x="75" y="247.3" text-anchor="end" class="axis-text">40</text>
+      <line x1="90" y1="242.7" x2="740" y2="242.7" class="grid" opacity="0.6" />
+      <text x="75" y="246.7" text-anchor="end" class="axis-text">47</text>
     
       <line x1="90" y1="200.0" x2="740" y2="200.0" class="grid" opacity="0.6" />
-      <text x="75" y="204.0" text-anchor="end" class="axis-text">60</text>
+      <text x="75" y="204.0" text-anchor="end" class="axis-text">70</text>
     
-      <line x1="90" y1="156.7" x2="740" y2="156.7" class="grid" opacity="0.6" />
-      <text x="75" y="160.7" text-anchor="end" class="axis-text">80</text>
+      <line x1="90" y1="157.3" x2="740" y2="157.3" class="grid" opacity="0.6" />
+      <text x="75" y="161.3" text-anchor="end" class="axis-text">93</text>
     
-      <line x1="90" y1="113.3" x2="740" y2="113.3" class="grid" opacity="0.6" />
-      <text x="75" y="117.3" text-anchor="end" class="axis-text">100</text>
+      <line x1="90" y1="112.7" x2="740" y2="112.7" class="grid" opacity="0.6" />
+      <text x="75" y="116.7" text-anchor="end" class="axis-text">117</text>
     
       <line x1="90" y1="70.0" x2="740" y2="70.0" class="grid" opacity="0.6" />
-      <text x="75" y="74.0" text-anchor="end" class="axis-text">120</text>
+      <text x="75" y="74.0" text-anchor="end" class="axis-text">140</text>
     
 
   <line x1="90" y1="70" x2="90" y2="330" class="axis" />
@@ -48,10 +48,10 @@
 
   <text x="35" y="200" text-anchor="middle" transform="rotate(-90 35 200)" class="title-text">GitHub Stars</text>
 
-  <path d="M 90 330 L 90.0 327.8 L 91.3 319.2 L 102.7 310.5 L 110.5 301.8 L 117.6 293.2 L 130.4 284.5 L 141.9 275.8 L 168.7 267.2 L 195.8 258.5 L 212.1 249.8 L 236.9 241.2 L 257.7 232.5 L 298.5 223.8 L 318.5 215.2 L 328.7 206.5 L 350.7 197.8 L 380.3 189.2 L 397.6 180.5 L 429.1 171.8 L 450.0 163.2 L 484.3 154.5 L 530.0 145.8 L 536.2 137.2 L 565.6 128.5 L 603.3 119.8 L 624.4 111.2 L 701.1 102.5 L 729.7 93.8 L 731.8 91.7 L 740.0 91.7 L 740.0 330 Z" class="area" />
-  <path d="M 90 330 L 90.0 327.8 L 91.3 319.2 L 102.7 310.5 L 110.5 301.8 L 117.6 293.2 L 130.4 284.5 L 141.9 275.8 L 168.7 267.2 L 195.8 258.5 L 212.1 249.8 L 236.9 241.2 L 257.7 232.5 L 298.5 223.8 L 318.5 215.2 L 328.7 206.5 L 350.7 197.8 L 380.3 189.2 L 397.6 180.5 L 429.1 171.8 L 450.0 163.2 L 484.3 154.5 L 530.0 145.8 L 536.2 137.2 L 565.6 128.5 L 603.3 119.8 L 624.4 111.2 L 701.1 102.5 L 729.7 93.8 L 731.8 91.7 L 740.0 91.7" class="line" />
+  <path d="M 90 330 L 90.0 328.1 L 91.3 320.7 L 102.6 313.3 L 110.4 305.9 L 117.4 298.4 L 130.1 291.0 L 141.6 283.6 L 168.2 276.1 L 195.1 268.7 L 211.2 261.3 L 235.9 253.9 L 256.6 246.4 L 297.1 239.0 L 317.0 231.6 L 327.1 224.1 L 348.9 216.7 L 378.3 209.3 L 395.5 201.9 L 426.8 194.4 L 447.6 187.0 L 481.7 179.6 L 527.0 172.1 L 533.2 164.7 L 562.4 157.3 L 599.8 149.9 L 620.8 142.4 L 697.0 135.0 L 725.4 127.6 L 737.2 123.9 L 740.0 123.9 L 740.0 330 Z" class="area" />
+  <path d="M 90 330 L 90.0 328.1 L 91.3 320.7 L 102.6 313.3 L 110.4 305.9 L 117.4 298.4 L 130.1 291.0 L 141.6 283.6 L 168.2 276.1 L 195.1 268.7 L 211.2 261.3 L 235.9 253.9 L 256.6 246.4 L 297.1 239.0 L 317.0 231.6 L 327.1 224.1 L 348.9 216.7 L 378.3 209.3 L 395.5 201.9 L 426.8 194.4 L 447.6 187.0 L 481.7 179.6 L 527.0 172.1 L 533.2 164.7 L 562.4 157.3 L 599.8 149.9 L 620.8 142.4 L 697.0 135.0 L 725.4 127.6 L 737.2 123.9 L 740.0 123.9" class="line" />
 
-  <circle cx="740.0" cy="91.7" r="5" class="dot" />
+  <circle cx="740.0" cy="123.9" r="5" class="dot" />
 
   <rect x="110" y="85" width="185" height="32" class="legend-bg" />
   <rect x="122" y="97" width="10" height="10" rx="2" fill="#ff7b72" />
