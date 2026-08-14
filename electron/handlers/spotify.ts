@@ -5,6 +5,7 @@ const spotifyAuth = new ElectronSpotifyAuth();
 import { StoreSchema, schema } from '../store.js';
 const store = new Store<StoreSchema>({ schema: schema as any });
 
+
 let activeRefreshPromise: Promise<any> | null = null;
 let lastRefreshAttempt = 0;
 const REFRESH_COOLDOWN = 10000; 
@@ -22,6 +23,10 @@ export function registerSpotifyHandlers() {
             return { success: false, error: String(error) };
         }
     });
+
+
+
+
 
     ipcMain.handle('get-spotify-credentials', async (_event, forceRefresh: boolean = false) => {
         const token = store.get('spotify_access_token');
@@ -48,7 +53,7 @@ export function registerSpotifyHandlers() {
                     }
                     lastRefreshAttempt = Date.now();
                     activeRefreshPromise = spotifyAuth.refresh(spDcCookie.value)
-                        .then(newCreds => {
+                        .then((newCreds: any) => {
                             store.set('spotify_access_token', newCreds.accessToken);
                             store.set('spotify_expires_at', newCreds.expiration);
                             return newCreds;
@@ -57,6 +62,8 @@ export function registerSpotifyHandlers() {
                             activeRefreshPromise = null;
                         });
                 }
+
+
 
                 try {
                     const newCreds = await activeRefreshPromise;

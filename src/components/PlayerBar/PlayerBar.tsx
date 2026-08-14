@@ -368,15 +368,34 @@ const PlayerBar: React.FC<{
     const nextIndex = (currentIndex + 1) % modes.length;
     setIsLoop(modes[nextIndex]);
   };
-  const onToggleQueue = () => setShowQueue(!showQueue);
-  const onToggleFullNowPlaying = () =>
-    setShowFullNowPlaying(!showFullNowPlaying);
+  const onToggleQueue = () => {
+    setShowQueue(!showQueue);
+  };
+  const onToggleFullNowPlaying = () => {
+    const nextState = !showFullNowPlaying;
+    if (nextState) {
+      setShowLyrics(false);
+      setShowQueue(false);
+    }
+    setShowFullNowPlaying(nextState);
+  };
+  const onToggleLyrics = () => {
+    const nextState = !showLyrics;
+    if (nextState) {
+      setShowFullNowPlaying(false);
+      setShowQueue(false);
+    }
+    setShowLyrics(nextState);
+  };
+
   const onPrev = () => handlePrevTrack(currentTime);
   const [progress, setProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const isSeekingRef = useRef(false);
   const currentTimeRef = useRef(currentTime);
   currentTimeRef.current = currentTime;
   const [trackDuration, setTrackDuration] = useState(0);
+
 
   const [prevVolume, setPrevVolume] = useState(0.8);
   const isFirstLoad = useRef(true);
@@ -386,6 +405,7 @@ const PlayerBar: React.FC<{
   const hasRetriedAfterError = useRef(false);
   const isRadioFetching = useRef(false);
   const progressTimeoutRef = useRef<number | null>(null);
+
 
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [localPlaylists, setLocalPlaylists] = useState<LocalPlaylist[]>([]);
@@ -960,17 +980,16 @@ const PlayerBar: React.FC<{
   }, [setIsPlaying]);
 
   const handleTimeUpdate = () => {
-    if (audioRef.current) {
+    if (audioRef.current && !isSeekingRef.current) {
       const current = audioRef.current.currentTime;
-      const dur = audioRef.current.duration;
+      const dur = audioRef.current.duration || (currentTrack?.durationMs ? currentTrack.durationMs / 1000 : 0);
       setCurrentTime(current);
-      if (dur && !isNaN(dur)) {
+      if (dur && !isNaN(dur) && dur > 0) {
         setProgress((current / dur) * 100);
       }
 
       window.dispatchEvent(new CustomEvent("luniq:timeupdate", { detail: { currentTime: current } }));
 
-      
       if (currentTrack && Math.abs(current - lastSavedTime.current) > 2) {
         localStorage.setItem("luniq_player_progress", String(current));
         localStorage.setItem("luniq_player_track_id", currentTrack.id);
@@ -979,30 +998,56 @@ const PlayerBar: React.FC<{
     }
   };
 
+  const handleSeekStart = () => {
+    isSeekingRef.current = true;
+  };
+
   const handleProgressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newProgress = parseFloat(e.target.value);
-    if (audioRef.current && audioRef.current.duration) {
-      const newTime = (newProgress / 100) * audioRef.current.duration;
-      audioRef.current.currentTime = newTime;
-      setProgress(newProgress);
+    const dur = (audioRef.current && !isNaN(audioRef.current.duration) && audioRef.current.duration > 0)
+      ? audioRef.current.duration
+      : (trackDuration || (currentTrack?.durationMs ? currentTrack.durationMs / 1000 : 0));
+
+    setProgress(newProgress);
+    if (dur && dur > 0) {
+      const previewTime = (newProgress / 100) * dur;
+      setCurrentTime(previewTime);
+    }
+  };
+
+  const handleSeekEnd = (e: React.MouseEvent<HTMLInputElement> | React.TouchEvent<HTMLInputElement> | React.KeyboardEvent<HTMLInputElement>) => {
+    isSeekingRef.current = false;
+
+    const inputVal = parseFloat((e.target as HTMLInputElement).value);
+
+    const dur = (audioRef.current && !isNaN(audioRef.current.duration) && audioRef.current.duration > 0)
+      ? audioRef.current.duration
+      : (trackDuration || (currentTrack?.durationMs ? currentTrack.durationMs / 1000 : 0));
+
+    if (dur && dur > 0 && !isNaN(inputVal)) {
+      const targetTime = (inputVal / 100) * dur;
+      if (audioRef.current) {
+        audioRef.current.currentTime = targetTime;
+      }
+      setCurrentTime(targetTime);
+      setProgress(inputVal);
+
+      window.dispatchEvent(new CustomEvent("luniq:timeupdate", { detail: { currentTime: targetTime } }));
 
       if (progressTimeoutRef.current) {
         clearTimeout(progressTimeoutRef.current);
       }
 
-      
       if (currentTrack && isPlaying) {
         progressTimeoutRef.current = window.setTimeout(() => {
-          const finalDuration = trackDuration
-            ? trackDuration * 1000
-            : currentTrack.durationMs;
+          const finalDuration = trackDuration ? trackDuration * 1000 : currentTrack.durationMs;
           window.ipcRenderer
             ?.invoke("update-rpc", {
               title: currentTrack.name,
               artist: currentTrack.artist,
               albumArt: currentTrack.albumArt,
               duration: finalDuration,
-              currentTime: newTime * 1000,
+              currentTime: targetTime * 1000,
               isPlaying: true,
               trackId: currentTrack.id,
             })
@@ -1011,6 +1056,7 @@ const PlayerBar: React.FC<{
       }
     }
   };
+
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseFloat(e.target.value) / 100;
@@ -1549,9 +1595,15 @@ const PlayerBar: React.FC<{
               max="100"
               step="0.01"
               value={progress}
+              onMouseDown={handleSeekStart}
+              onTouchStart={handleSeekStart}
               onChange={handleProgressChange}
+              onMouseUp={handleSeekEnd}
+              onTouchEnd={handleSeekEnd}
+              onKeyUp={handleSeekEnd}
               disabled={isLoading}
             />
+
           </div>
           <span className="time-label">{formatSeconds(trackDuration)}</span>
         </div>
@@ -1580,7 +1632,7 @@ const PlayerBar: React.FC<{
 
         <button
           className={`control-btn ${showLyrics ? "active" : ""}`}
-          onClick={() => setShowLyrics(!showLyrics)}
+          onClick={onToggleLyrics}
           title={t("player.lyrics")}
         >
           <svg
@@ -1600,10 +1652,11 @@ const PlayerBar: React.FC<{
         </button>
 
         <button
-          className="control-btn"
+          className={`control-btn ${showFullNowPlaying ? "active" : ""}`}
           onClick={onToggleFullNowPlaying}
           title={t("player.fullNowPlaying")}
         >
+
           <svg
             width="18"
             height="18"

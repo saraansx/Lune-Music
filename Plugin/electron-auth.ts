@@ -17,26 +17,57 @@ export class ElectronSpotifyAuth {
         : path.join(app.getAppPath(), "src", "assets", "Luniq.png");
 
       const partition = `temp-login-${Date.now()}`;
+      const loginSession = session.fromPartition(partition);
+
+      // Full clean Firefox User-Agent without any Electron or Chrome tokens
+      const firefoxUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:130.0) Gecko/20100101 Firefox/130.0";
+      loginSession.setUserAgent(firefoxUA);
+
+      // Intercept and sanitize headers for Google and Spotify domains
+      loginSession.webRequest.onBeforeSendHeaders((details, callback) => {
+        const requestHeaders = { ...details.requestHeaders };
+        requestHeaders['User-Agent'] = firefoxUA;
+        delete requestHeaders['X-Electron'];
+        delete requestHeaders['x-requested-with'];
+        delete requestHeaders['Sec-Fetch-User'];
+        callback({ cancel: false, requestHeaders });
+      });
 
       const loginWindow = new BrowserWindow({
         width: 800,
         height: 700,
         title: "Luniq",
         icon: iconPath,
+        autoHideMenuBar: true,
         webPreferences: {
           nodeIntegration: false,
           contextIsolation: true,
           partition: partition,
+          webSecurity: true,
         },
       });
 
-      loginWindow.webContents.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0");
+      loginWindow.setMenuBarVisibility(false);
+      loginWindow.webContents.setUserAgent(firefoxUA);
+
+      // Disable window.navigator.webdriver and Electron globals
+      loginWindow.webContents.on('dom-ready', () => {
+        loginWindow.webContents.executeJavaScript(`
+          try {
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+          } catch(e) {}
+        `).catch(() => {});
+      });
 
       loginWindow.on("page-title-updated", (e) => {
         e.preventDefault();
       });
 
-      loginWindow.loadURL("https://accounts.spotify.com/");
+      loginWindow.loadURL("https://accounts.spotify.com/en/login", {
+        userAgent: firefoxUA,
+      });
+
+
 
       const handleNavigation = async (_url: string) => {
         const cookies = await session.fromPartition(partition).cookies.get({

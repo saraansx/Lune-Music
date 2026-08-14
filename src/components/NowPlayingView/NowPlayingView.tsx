@@ -25,13 +25,31 @@ const NowPlayingView: React.FC<{
     const {
         currentTrack,
         showFullNowPlaying: isOpen,
-        setShowFullNowPlaying
+        setShowFullNowPlaying,
+        queue,
+        shuffledQueue,
+        isShuffle,
+        handleTrackSelect
     } = usePlayer();
+
     const { t } = useLanguage();
     const api = useApi();
-
     const onClose = () => setShowFullNowPlaying(false);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "Escape") {
+                onClose();
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [isOpen]);
+
     const [artistInfo, setArtistInfo] = useState<ArtistInfo | null>(null);
+
+
     const [canvasUrl, setCanvasUrl] = useState<string | null>(null);
     const [credits, setCredits] = useState<any[]>([]);
     const [creditFollowState, setCreditFollowState] = useState<Record<string, boolean>>({});
@@ -218,18 +236,46 @@ const NowPlayingView: React.FC<{
             )}
 
             <div className="np-header">
-                <span className="np-header-title">
-                    {isFullscreen ? t('nowPlaying.title') : (currentTrack?.name || t('nowPlaying.title'))}
-                </span>
-                
-                {isFullscreen && onClose && (
-                    <button className="np-close-btn" onClick={onClose} title={t('nowPlaying.close')}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M18 6L6 18M6 6l12 12"/>
-                        </svg>
-                    </button>
+                {isFullscreen && currentTrack ? (
+                    <div className="np-header-track-info">
+                        <div className="np-header-title" title={currentTrack.name}>{currentTrack.name}</div>
+                        <div className="np-header-artist-container">
+                            {currentTrack.artists && currentTrack.artists.length > 0 ? (
+                                currentTrack.artists.map((artist: any, i: number, arr: any[]) => (
+                                    <React.Fragment key={(artist.id || artist.name) + i}>
+                                        <span 
+                                            className="np-header-artist"
+                                            onClick={() => onArtistSelect?.(artist.id, artist.name)}
+                                            style={{ cursor: onArtistSelect ? 'pointer' : 'default' }}
+                                        >
+                                            {artist.name}
+                                        </span>
+                                        {i < arr.length - 1 && <span className="artist-separator">, </span>}
+                                    </React.Fragment>
+                                ))
+                            ) : (
+                                currentTrack.artist.split(', ').map((name: string, i: number, arr: string[]) => (
+                                    <React.Fragment key={name + i}>
+                                        <span 
+                                            className="np-header-artist"
+                                            onClick={() => onArtistSelect?.(null, name)}
+                                            style={{ cursor: onArtistSelect ? 'pointer' : 'default' }}
+                                        >
+                                            {name}
+                                        </span>
+                                        {i < arr.length - 1 && <span className="artist-separator">, </span>}
+                                    </React.Fragment>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                ) : (
+                    <span className="np-header-title">
+                        {currentTrack?.name || t('nowPlaying.title')}
+                    </span>
                 )}
             </div>
+
 
             {currentTrack ? (
                 <div className={isFullscreen ? "fullscreen-content" : ""}>
@@ -254,55 +300,72 @@ const NowPlayingView: React.FC<{
                         </div>
                         
                         <div className="np-details-column">
-                            <div className="np-track-info">
-                                <div className="np-track-title" title={currentTrack.name}>{currentTrack.name}</div>
-                                <div className="np-track-artist-container">
-                                    {currentTrack.artists && currentTrack.artists.length > 0 ? (
-                                        currentTrack.artists.map((artist: any, i: number, arr: any[]) => (
-                                            <React.Fragment key={(artist.id || artist.name) + i}>
-                                                <span 
-                                                    className="np-track-artist"
-                                                    onClick={() => onArtistSelect?.(artist.id, artist.name)}
-                                                    style={{ cursor: onArtistSelect ? 'pointer' : 'default' }}
-                                                >
-                                                    {artist.name}
-                                                </span>
-                                                {i < arr.length - 1 && <span className="artist-separator">, </span>}
-                                            </React.Fragment>
-                                        ))
-                                    ) : (
-                                        currentTrack.artist.split(', ').map((name: string, i: number, arr: string[]) => (
-                                            <React.Fragment key={name + i}>
-                                                <span 
-                                                    className="np-track-artist"
-                                                    onClick={() => onArtistSelect?.(null, name)}
-                                                    style={{ cursor: onArtistSelect ? 'pointer' : 'default' }}
-                                                >
-                                                    {name}
-                                                </span>
-                                                {i < arr.length - 1 && <span className="artist-separator">, </span>}
-                                            </React.Fragment>
-                                        ))
-                                    )}
+                            {!isFullscreen && (
+                                <div className="np-track-info">
+                                    <div className="np-track-title" title={currentTrack.name}>{currentTrack.name}</div>
+                                    <div className="np-track-artist-container">
+                                        {currentTrack.artists && currentTrack.artists.length > 0 ? (
+                                            currentTrack.artists.map((artist: any, i: number, arr: any[]) => (
+                                                <React.Fragment key={(artist.id || artist.name) + i}>
+                                                    <span 
+                                                        className="np-track-artist"
+                                                        onClick={() => onArtistSelect?.(artist.id, artist.name)}
+                                                        style={{ cursor: onArtistSelect ? 'pointer' : 'default' }}
+                                                    >
+                                                        {artist.name}
+                                                    </span>
+                                                    {i < arr.length - 1 && <span className="artist-separator">, </span>}
+                                                </React.Fragment>
+                                            ))
+                                        ) : (
+                                            currentTrack.artist.split(', ').map((name: string, i: number, arr: string[]) => (
+                                                <React.Fragment key={name + i}>
+                                                    <span 
+                                                        className="np-track-artist"
+                                                        onClick={() => onArtistSelect?.(null, name)}
+                                                        style={{ cursor: onArtistSelect ? 'pointer' : 'default' }}
+                                                    >
+                                                        {name}
+                                                    </span>
+                                                    {i < arr.length - 1 && <span className="artist-separator">, </span>}
+                                                </React.Fragment>
+                                            ))
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
+                            )}
+
+
 
                             {}
-                            <div className="np-section">
+                            <div className="np-section np-about-artist-section">
                                 <div className="np-section-title">{t('nowPlaying.aboutArtist')}</div>
                                 {loading ? (
                                     <div className="loading-skeleton" />
                                 ) : artistInfo ? (
                                     <>
                                         {artistInfo.image && (
-                                            <div className="np-artist-header">
-                                                <img src={artistInfo.image} alt={artistInfo.name} className="np-artist-bg" />
-                                                <div className="np-artist-name-overlay">{artistInfo.name}</div>
-                                            </div>
-                                        )}
-                                        {artistInfo.monthlyListeners && (
-                                            <div className="np-monthly-listeners">
-                                                <span>{artistInfo.monthlyListeners} {t('nowPlaying.monthlyListeners')}</span>
+                                            <div className="np-artist-compact-card">
+                                                <img src={artistInfo.image} alt={artistInfo.name} className="np-artist-avatar-full" />
+                                                <div className="np-artist-compact-details">
+                                                    <div className="np-artist-compact-name">{artistInfo.name}</div>
+                                                    {artistInfo.monthlyListeners && (
+                                                        <div className="np-monthly-listeners">
+                                                            <span>{artistInfo.monthlyListeners} {t('nowPlaying.monthlyListeners')}</span>
+                                                        </div>
+                                                    )}
+                                                    {currentTrack.albumName && (
+                                                        <div 
+                                                            className="np-artist-album-badge"
+                                                            onClick={() => onPlaylistSelect?.(currentTrack.id, true)}
+                                                            style={{ cursor: onPlaylistSelect ? 'pointer' : 'default' }}
+                                                            title={currentTrack.albumName}
+                                                        >
+                                                            <img src={currentTrack.albumArt} alt="" className="np-badge-album-art" />
+                                                            <span className="np-badge-album-title">{currentTrack.albumName}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         )}
                                         {artistInfo.bio && (
@@ -317,6 +380,8 @@ const NowPlayingView: React.FC<{
                                     <div style={{ color: 'var(--text-dim)' }}>{t('nowPlaying.artistUnavailable')}</div>
                                 )}
                             </div>
+
+
 
                             {credits.length > 0 && (
                                 <div className="np-section np-spotify-credits-section">
@@ -345,10 +410,52 @@ const NowPlayingView: React.FC<{
                                     </div>
                                 </div>
                             )}
+
+                            {isFullscreen && (
+                                <div className="np-section np-up-next-section">
+                                    <div className="np-up-next-header">
+                                        <div className="np-section-title" style={{ marginBottom: 0 }}>
+                                            {t('queue.nextInQueue')}
+                                        </div>
+                                        {(isShuffle ? shuffledQueue : queue).length > 0 && (
+                                            <span className="np-up-next-count">
+                                                {(isShuffle ? shuffledQueue : queue).length} tracks
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <div className="np-up-next-list">
+                                        {(isShuffle ? shuffledQueue : queue).length > 0 ? (
+                                            (isShuffle ? shuffledQueue : queue).slice(0, 3).map((track, idx) => (
+                                                <div 
+                                                    key={(track.id || track.name) + idx} 
+                                                    className="np-up-next-item"
+                                                    onClick={() => handleTrackSelect(track, isShuffle ? shuffledQueue : queue, 'manual')}
+                                                >
+                                                    <img 
+                                                        src={track.albumArt || ''} 
+                                                        alt={track.name} 
+                                                        className="np-up-next-art" 
+                                                    />
+                                                    <div className="np-up-next-info">
+                                                        <div className="np-up-next-title" title={track.name}>{track.name}</div>
+                                                        <div className="np-up-next-artist">{track.artist}</div>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="np-up-next-empty">
+                                                No upcoming tracks in queue
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
             ) : (
+
                 <div className="np-empty-state">
                     {t('nowPlaying.playTrack')}
                 </div>

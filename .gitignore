@@ -1,8 +1,15 @@
 release/
+dist/
 dist-electron
 node_modules
+
 Plugin/gql/spotify_hashes.json
 az
 azz
 updated.json
 spotify_hashes_summary.txt
+
+# Agent and Session Files
+AGENTS.md
+WORKLOG.md
+.agents/

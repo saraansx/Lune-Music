@@ -34,17 +34,22 @@ const proxyServer = http.createServer((req, res) => {
   }
 
   let resolvedUserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+  let cleanTargetUrl = targetUrl;
   try {
     const parsed = new URL(targetUrl);
     const uaParam = parsed.searchParams.get('__luniq_ua');
     if (uaParam) {
-      resolvedUserAgent = uaParam;
+      resolvedUserAgent = decodeURIComponent(uaParam);
+      parsed.searchParams.delete('__luniq_ua');
+      cleanTargetUrl = parsed.toString();
     }
   } catch (e) {}
 
   let start = 0;
   let end: number | null = null;
+  let isRangeRequest = false;
   if (req.headers.range) {
+    isRangeRequest = true;
     const parts = req.headers.range.replace(/bytes=/, "").split("-");
     start = parseInt(parts[0], 10);
     if (parts[1]) {
@@ -52,23 +57,26 @@ const proxyServer = http.createServer((req, res) => {
     }
   }
 
-  const CHUNK_SIZE = 512 * 1024;
-  let targetEnd = end;
-  if (targetEnd === null) {
-    targetEnd = start + CHUNK_SIZE - 1;
-  }
-
   const headers: Record<string, string> = {
-    'Range': `bytes=${start}-${targetEnd}`,
     'User-Agent': resolvedUserAgent
   };
+
+  if (isRangeRequest) {
+    if (end !== null) {
+      headers['Range'] = `bytes=${start}-${end}`;
+    } else {
+      headers['Range'] = `bytes=${start}-`;
+    }
+  }
+
   const controller = new AbortController();
   req.on('close', () => controller.abort());
 
-  globalThis.fetch(targetUrl, {
+  globalThis.fetch(cleanTargetUrl, {
     headers,
     signal: controller.signal
   })
+
     .then((targetRes) => {
       if (targetRes.status === 403) {
         console.warn(`[Proxy] 403 Forbidden details:`, {
