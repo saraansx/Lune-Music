@@ -1,40 +1,65 @@
 .queue-panel {
-    width: 320px;     height: 100%;
-    background: var(--glass-bg);
-    backdrop-filter: var(--glass-blur);
-    border-left: 1px solid var(--glass-border);
+    width: 0;
+    max-width: 320px;
+    height: calc(100% - 12px);
+    margin: 6px 0 6px 0;
+    background: rgba(12, 15, 22, 0.65);
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+    border: 1px solid transparent;
+    border-radius: 12px;
     display: flex;
     flex-direction: column;
-    padding: 20px 16px;     box-shadow: -10px 0 30px rgba(0, 0, 0, 0.2);
+    padding: 0;
+    box-shadow: none;
     overflow: hidden;
-    animation: q-slideIn 0.35s cubic-bezier(0.2, 0, 0, 1);
     z-index: 100;
+    opacity: 0;
+    perspective: 1000px;
+    transform: perspective(800px) rotateY(10deg) scale(0.9, 0.9) translateX(40px);
+    transform-origin: right center;
+    filter: blur(8px) brightness(0.7);
+    pointer-events: none;
+    visibility: hidden;
+    transition: 
+        width 0.42s cubic-bezier(0.2, 0, 0, 1),
+        margin 0.42s cubic-bezier(0.2, 0, 0, 1),
+        padding 0.42s cubic-bezier(0.2, 0, 0, 1),
+        transform 0.42s cubic-bezier(0.2, 0, 0, 1),
+        opacity 0.35s cubic-bezier(0.2, 0, 0, 1),
+        filter 0.35s ease,
+        border-color 0.3s ease,
+        box-shadow 0.3s ease,
+        visibility 0.42s ease;
+    will-change: width, margin, transform, opacity, filter;
 }
 
-@keyframes q-slideIn {
-    from {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
+.queue-panel.open:not(.closing) {
+    width: 320px;
+    margin: 6px 8px 6px 6px;
+    padding: 16px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    opacity: 1;
+    transform: perspective(800px) rotateY(0deg) scale(1, 1) translateX(0);
+    filter: blur(0px) brightness(1);
+    pointer-events: all;
+    visibility: visible;
+}
+
+.queue-panel.open:not(.closing):hover {
+    border-color: rgba(255, 255, 255, 0.12);
 }
 
 .queue-panel.closing {
-    animation: q-slideOut 0.3s cubic-bezier(0.2, 0, 0, 1) forwards;
-}
-
-@keyframes q-slideOut {
-    from {
-        transform: translateX(0);
-        opacity: 1;
-    }
-    to {
-        transform: translateX(100%);
-        opacity: 0;
-    }
+    width: 0;
+    margin: 6px 0 6px 0;
+    padding: 16px 0;
+    opacity: 0;
+    transform: perspective(800px) rotateY(10deg) scale(0.9, 0.9) translateX(40px);
+    filter: blur(8px) brightness(0.7);
+    pointer-events: none;
+    visibility: hidden;
 }
 
 .queue-header {
@@ -43,6 +68,7 @@
     align-items: center;
     margin-bottom: 20px;
     padding: 0 4px;
+    min-width: 288px;
 }
 
 .queue-tabs {
@@ -105,6 +131,7 @@
     justify-content: center;
     border-top: 1px solid var(--card-hover);
     margin-top: 8px;
+    min-width: 288px;
 }
 
 .clear-queue-btn {
@@ -130,6 +157,7 @@
     flex: 1;
     overflow-y: auto;
     padding-right: 4px;
+    min-width: 288px;
 }
 
 .queue-section {

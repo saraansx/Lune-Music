@@ -20,7 +20,20 @@ export function registerSpotifyHandlers() {
             return credentials;
         } catch (error: any) {
             console.error('Spotify Login Error:', error);
-            return { success: false, error: String(error) };
+            return null;
+        }
+    });
+
+    ipcMain.handle('spotify-guest-login', async () => {
+        try {
+            const credentials = await spotifyAuth.getAnonymousToken();
+            store.set('spotify_access_token', credentials.accessToken);
+            store.set('spotify_cookies', credentials.cookies);
+            store.set('spotify_expires_at', credentials.expiration);
+            return credentials;
+        } catch (error: any) {
+            console.error('Spotify Guest Login Error:', error);
+            return null;
         }
     });
 
@@ -40,10 +53,24 @@ export function registerSpotifyHandlers() {
                 const spDcCookie = cookies?.find((c: any) => c.name === 'sp_dc');
 
                 if (!spDcCookie) {
-                    store.delete('spotify_access_token');
-                    store.delete('spotify_cookies');
-                    store.delete('spotify_expires_at');
-                    return null;
+                    if (!activeRefreshPromise) {
+                        activeRefreshPromise = spotifyAuth.getAnonymousToken()
+                            .then((newCreds: any) => {
+                                store.set('spotify_access_token', newCreds.accessToken);
+                                store.set('spotify_cookies', newCreds.cookies);
+                                store.set('spotify_expires_at', newCreds.expiration);
+                                return newCreds;
+                            })
+                            .finally(() => {
+                                activeRefreshPromise = null;
+                            });
+                    }
+                    try {
+                        const newCreds = await activeRefreshPromise;
+                        return newCreds;
+                    } catch (e) {
+                        return null;
+                    }
                 }
 
                 if (!activeRefreshPromise) {

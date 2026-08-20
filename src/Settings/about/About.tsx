@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import './About.css';
 import { useLanguage } from '../../context/LanguageContext';
 import mainLogo from '../../assets/Main.png';
@@ -78,7 +79,7 @@ const CommitsModal: React.FC<CommitsModalProps> = ({ onClose }) => {
         return () => window.removeEventListener('keydown', handleKey);
     }, [onClose]);
 
-    return (
+    return ReactDOM.createPortal(
         <div className="about-modal-overlay" onClick={onClose}>
             <div className="about-modal-glass about-modal-glass--commits" onClick={(e) => e.stopPropagation()}>
                 <div className="about-modal-scroll">
@@ -94,7 +95,8 @@ const CommitsModal: React.FC<CommitsModalProps> = ({ onClose }) => {
                     </svg>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 
@@ -128,7 +130,7 @@ const AboutModal: React.FC<AboutModalProps> = ({ onClose }) => {
         return () => window.removeEventListener('keydown', handleKey);
     }, [onClose]);
 
-    return (
+    return ReactDOM.createPortal(
         <div className="about-modal-overlay" onClick={onClose}>
             <div className="about-modal-glass" onClick={(e) => e.stopPropagation()}>
                 <div className="about-modal-scroll">
@@ -256,7 +258,8 @@ const AboutModal: React.FC<AboutModalProps> = ({ onClose }) => {
                 </p>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

@@ -9,9 +9,31 @@
     z-index: 9999;
     display: flex;
     flex-direction: column;
-    animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-    background: #000;
     overflow: hidden;
+    perspective: 1200px;
+    transform: perspective(1000px) rotateX(-12deg) scale(0.18, 0.08) translateY(120px) skewX(-4deg);
+    transform-origin: 80% calc(100% + 40px);
+    clip-path: polygon(42% 100%, 58% 100%, 85% 100%, 15% 100%);
+    opacity: 0;
+    filter: blur(12px) brightness(0.5);
+    visibility: hidden;
+    pointer-events: none;
+    transition: 
+        transform 0.62s cubic-bezier(0.32, 0, 0.08, 1),
+        clip-path 0.62s cubic-bezier(0.32, 0, 0.08, 1),
+        opacity 0.45s cubic-bezier(0.2, 0, 0, 1),
+        filter 0.5s ease,
+        visibility 0.62s ease;
+    will-change: transform, clip-path, opacity, filter;
+}
+
+.lyrics-view-overlay.active {
+    transform: perspective(1000px) rotateX(0deg) scale(1, 1) translateY(0) skewX(0deg);
+    clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%);
+    opacity: 1;
+    filter: blur(0px) brightness(1);
+    visibility: visible;
+    pointer-events: all;
 }
 
 .lyrics-background-blur {
@@ -66,17 +88,24 @@
 .lyrics-header .text {
     display: flex;
     flex-direction: column;
+    gap: 4px;
 }
 
 .lyrics-header .name {
-    font-size: 1.2rem;
-    font-weight: 700;
+    font-size: 1.35rem;
+    font-weight: 800;
     color: var(--text-main);
+    letter-spacing: -0.025em;
+    line-height: 1.25;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
 }
 
 .lyrics-header .artist {
-    font-size: 0.9rem;
-    color: rgba(var(--text-main-rgb), 0.9);
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: rgba(var(--text-main-rgb), 0.75);
+    letter-spacing: -0.01em;
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
 }
 
 .close-lyrics-btn {
@@ -102,12 +131,14 @@
 .lyrics-content {
     flex: 1;
     overflow-y: auto;
-    padding: 30px 32px 120px 32px;
+    padding: 100px 32px 240px 32px;
     scrollbar-width: none;
-    mask-image: linear-gradient(to bottom, transparent, black 30px, black calc(100% - 80px), transparent);
+    mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 75%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 75%, transparent 100%);
     z-index: 10;
     position: relative;
     margin-top: 0px;
+    scroll-behavior: smooth;
 }
 
 .lyrics-content::-webkit-scrollbar {
@@ -125,63 +156,119 @@
 }
 
 .synced-lyrics-container, .plain-lyrics-container, .lyrics-container {
-    max-width: 800px;
+    max-width: 840px;
     margin: 0 auto;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 20px;
     text-align: center;
 }
 
 .lyric-line-static {
-    font-size: 1.5rem;
+    font-size: 1.55rem;
     font-weight: 600;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.4);
     line-height: 1.6;
-    transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-    padding: 12px 0;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    padding: 12px 20px;
+    border-radius: 12px;
 }
 
 .lyric-line-static:hover {
     color: #ffffff;
-    transform: scale(1.01);
+    background: rgba(255, 255, 255, 0.04);
+    transform: scale(1.02);
 }
 
 .lyric-line {
-    font-size: 1.8rem;
+    font-size: 1.85rem;
     font-weight: 600;
     line-height: 1.6;
-    padding: 14px 24px;
-    border-radius: 12px;
-    transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-    color: rgba(255, 255, 255, 0.35);
+    padding: 14px 28px;
+    border-radius: 16px;
+    transition: 
+        color 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+        transform 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+        opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+        filter 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+        text-shadow 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+        background 0.3s ease;
+    color: rgba(255, 255, 255, 0.28);
     cursor: pointer;
     text-align: center;
-    transform-origin: center;
+    transform-origin: center center;
+    opacity: 0.65;
+    filter: blur(0.6px);
+    will-change: transform, color, filter, opacity;
 }
 
 .lyric-line.active {
     color: #ffffff;
-    transform: scale(1.04);
-    text-shadow: 0 0 10px rgba(255, 255, 255, 0.15);
-    font-weight: 750;
+    transform: scale(1.08) translateY(-2px);
+    opacity: 1;
+    filter: blur(0px);
+    text-shadow: 0 4px 24px rgba(255, 255, 255, 0.35), 0 0 40px rgba(var(--accent-rgb), 0.3);
+    font-weight: 800;
 }
 
 .lyric-line:hover {
-    color: rgba(255, 255, 255, 0.75);
+    color: rgba(255, 255, 255, 0.85);
+    opacity: 0.95;
+    filter: blur(0px);
+    background: rgba(255, 255, 255, 0.03);
 }
 
 .lyric-romanized-text {
     font-size: 1.25rem;
     font-weight: 550;
     margin-top: 6px;
-    color: rgba(255, 255, 255, 0.45);
-    transition: all 0.4s ease;
+    color: rgba(255, 255, 255, 0.35);
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .lyric-line.active .lyric-romanized-text {
-    color: rgba(255, 255, 255, 0.75);
-    text-shadow: 0 0 12px rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.88);
+    text-shadow: 0 0 16px rgba(255, 255, 255, 0.25);
+}
+
+.lyric-words-wrap {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    column-gap: 8px;
+    row-gap: 2px;
+}
+
+.lyric-word {
+    display: inline-block;
+    color: rgba(255, 255, 255, 0.32);
+    transition: 
+        color 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+        transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
+        text-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+        opacity 0.22s ease,
+        filter 0.22s ease;
+    will-change: transform, color, text-shadow;
+}
+
+.lyric-line.active .lyric-word {
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.lyric-line.active .lyric-word.sung {
+    color: #ffffff;
+    opacity: 1;
+    text-shadow: 0 2px 14px rgba(255, 255, 255, 0.4);
+}
+
+.lyric-line.active .lyric-word.current {
+    color: #ffffff;
+    transform: scale(1.08) translateY(-1px);
+    text-shadow: 
+        0 0 20px rgba(255, 255, 255, 0.8),
+        0 0 35px rgba(var(--accent-rgb), 0.65),
+        0 4px 12px rgba(0, 0, 0, 0.5);
+    font-weight: 850;
 }
 
 .lyric-line-static.has-romanized {
@@ -192,7 +279,7 @@
 }
 
 .lyric-line-static .lyric-romanized-text {
-    font-size: 1.1rem;
+    font-size: 1.15rem;
     color: rgba(255, 255, 255, 0.55);
 }
 

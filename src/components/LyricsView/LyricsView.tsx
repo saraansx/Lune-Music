@@ -99,8 +99,19 @@ const LyricsView: React.FC = () => {
         }
     }
 
+    const isUserScrollingRef = useRef(false);
+    const userScrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const handleUserScroll = () => {
+        isUserScrollingRef.current = true;
+        if (userScrollTimeoutRef.current) clearTimeout(userScrollTimeoutRef.current);
+        userScrollTimeoutRef.current = setTimeout(() => {
+            isUserScrollingRef.current = false;
+        }, 3000);
+    };
+
     useEffect(() => {
-        if (isSynced && activeIndex !== -1 && scrollContainerRef.current) {
+        if (isSynced && activeIndex !== -1 && scrollContainerRef.current && !isUserScrollingRef.current) {
             const container = scrollContainerRef.current;
             const activeEl = container.querySelector(
                 `[data-index="${activeIndex}"]`
@@ -111,14 +122,13 @@ const LyricsView: React.FC = () => {
                 const targetScrollTop =
                     container.scrollTop +
                     (elRect.top - containerRect.top) -
-                    containerRect.height / 2 +
+                    containerRect.height * 0.38 +
                     elRect.height / 2;
+                
                 container.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
             }
         }
     }, [activeIndex, isSynced]);
-
-    if (!showLyrics) return null;
 
     return (
         <div className={`lyrics-view-overlay ${showLyrics ? 'active' : ''}`}>
@@ -129,7 +139,6 @@ const LyricsView: React.FC = () => {
             
             <div className="lyrics-header">
                 <div className="track-info">
-                    <img src={currentTrack?.albumArt} alt="" className="mini-art" />
                     <div className="text">
                         <span className="name">{currentTrack?.name}</span>
                         <span className="artist">{currentTrack?.artist}</span>
@@ -143,7 +152,13 @@ const LyricsView: React.FC = () => {
                 </button>
             </div>
 
-            <div className="lyrics-content" ref={scrollContainerRef}>
+            <div 
+                className="lyrics-content" 
+                ref={scrollContainerRef}
+                onScroll={handleUserScroll}
+                onWheel={handleUserScroll}
+                onTouchMove={handleUserScroll}
+            >
                 {loading && <div className="lyrics-status">{t('lyrics.searching')}</div>}
                 {error && <div className="lyrics-status">{error}</div>}
                 
@@ -152,13 +167,35 @@ const LyricsView: React.FC = () => {
                         {lyrics.map((line, index) => {
                             const isActive = index === activeIndex;
                             const hasRom = !!line.romanizedText;
+                            const hasWords = line.words && line.words.length > 0;
+                            
                             return (
                                 <div 
                                     key={index} 
                                     data-index={index}
                                     className={isSynced ? `lyric-line ${isActive ? 'active' : ''} ${hasRom ? 'has-romanized' : ''}` : `lyric-line-static ${hasRom ? 'has-romanized' : ''}`}
                                 >
-                                    <div className="lyric-main-text">{line.text}</div>
+                                    <div className="lyric-main-text">
+                                        {hasWords ? (
+                                            <span className="lyric-words-wrap">
+                                                {line.words!.map((word, wIdx) => {
+                                                    const isWordSung = isActive && currentTime >= word.time;
+                                                    const isCurrentWord = isActive && currentTime >= word.time && (!word.endTime || currentTime < word.endTime);
+                                                    
+                                                    return (
+                                                        <span 
+                                                            key={wIdx} 
+                                                            className={`lyric-word ${isWordSung ? 'sung' : ''} ${isCurrentWord ? 'current' : ''}`}
+                                                        >
+                                                            {word.text}
+                                                        </span>
+                                                    );
+                                                })}
+                                            </span>
+                                        ) : (
+                                            line.text
+                                        )}
+                                    </div>
                                     {hasRom && <div className="lyric-romanized-text">{line.romanizedText}</div>}
                                 </div>
                             );

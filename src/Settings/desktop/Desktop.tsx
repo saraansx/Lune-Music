@@ -76,6 +76,7 @@ const Desktop: React.FC = () => {
     const { t } = useLanguage();
     const [closeBehavior, setCloseBehavior] = useState('minimize'); 
     const [discordRPC, setDiscordRPC] = useState(true); 
+    const [floatingLyricsEnabled, setFloatingLyricsEnabled] = useState(true);
 
     useEffect(() => {
         const loadSettings = async () => {
@@ -85,6 +86,9 @@ const Desktop: React.FC = () => {
 
                 const savedRPC = await window.ipcRenderer?.invoke('get-setting', 'discordRPC');
                 if (savedRPC !== undefined) setDiscordRPC(savedRPC);
+
+                const savedLyrics = await window.ipcRenderer?.invoke('get-setting', 'floatingLyricsEnabled');
+                if (savedLyrics !== undefined) setFloatingLyricsEnabled(savedLyrics);
             } catch (err) {
                 console.warn('Failed to load settings', err);
             }
@@ -107,6 +111,18 @@ const Desktop: React.FC = () => {
             await window.ipcRenderer?.invoke('set-setting', 'discordRPC', val);
         } catch (err) {
             console.warn('Failed to save discordRPC setting', err);
+        }
+    };
+
+    const handleFloatingLyricsChange = async (val: boolean) => {
+        setFloatingLyricsEnabled(val);
+        try {
+            await window.ipcRenderer?.invoke('set-setting', 'floatingLyricsEnabled', val);
+            if (!val) {
+                await window.ipcRenderer?.invoke('toggle-floating-lyrics', false);
+            }
+        } catch (err) {
+            console.warn('Failed to save floatingLyricsEnabled setting', err);
         }
     };
 
@@ -141,6 +157,21 @@ const Desktop: React.FC = () => {
                             type="checkbox" 
                             checked={discordRPC} 
                             onChange={(e) => handleDiscordRPCChange(e.target.checked)} 
+                        />
+                        <span className="luniq-switch-slider"></span>
+                    </label>
+                </div>
+
+                <div className="settings-row" style={{ marginTop: '4px' }}>
+                    <div className="row-info" style={{ gap: '4px' }}>
+                        <span className="row-label">{t('desktop.floatingLyrics') || 'Floating Desktop Lyrics'}</span>
+                        <span className="row-sub">{t('desktop.floatingLyricsSub') || 'Display a floating, always-on-top glass karaoke pill over other apps and games.'}</span>
+                    </div>
+                    <label className="luniq-switch">
+                        <input 
+                            type="checkbox" 
+                            checked={floatingLyricsEnabled} 
+                            onChange={(e) => handleFloatingLyricsChange(e.target.checked)} 
                         />
                         <span className="luniq-switch-slider"></span>
                     </label>

@@ -4,7 +4,7 @@ export type AudioQuality = '96' | '128' | '256' | '320';
 export type DownloadQuality = '96' | '128' | '256' | '320';
 export type AudioFormat = 'mp4' | 'webm';
 export type DownloadFormat = 'mp4' | 'webm';
-export type AudioEngine = 'youtubei' | 'ytdlp';
+export type AudioEngine = 'youtubei' | 'ytdlp' | 'lavalink';
 
 interface PlaybackContextType {
   audioQuality: AudioQuality;
@@ -37,6 +37,24 @@ interface PlaybackContextType {
   setEqEnabled: (enabled: boolean) => void;
   eqBands: number[];
   setEqBands: (bands: number[]) => void;
+  spatialAudioEnabled: boolean;
+  setSpatialAudioEnabled: (enabled: boolean) => void;
+  spatialAudioMode: 'off' | 'dts3d' | 'surround71' | 'concert' | 'studio' | 'club' | 'audiophile';
+  setSpatialAudioMode: (mode: 'off' | 'dts3d' | 'surround71' | 'concert' | 'studio' | 'club' | 'audiophile') => void;
+  spatialWidth: number;
+  setSpatialWidth: (width: number) => void;
+  spatialRoomSize: 'small' | 'medium' | 'large' | 'arena';
+  setSpatialRoomSize: (size: 'small' | 'medium' | 'large' | 'arena') => void;
+  spatialBassBoost: number;
+  setSpatialBassBoost: (boost: number) => void;
+  spatialVocalClarity: number;
+  setSpatialVocalClarity: (clarity: number) => void;
+  spatialTubeWarmth: boolean;
+  setSpatialTubeWarmth: (enabled: boolean) => void;
+  gaplessEnabled: boolean;
+  setGaplessEnabled: (enabled: boolean) => void;
+  crossfadeDuration: number;
+  setCrossfadeDuration: (seconds: number) => void;
 }
 
 const PlaybackContext = createContext<PlaybackContextType | undefined>(undefined);
@@ -57,6 +75,15 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [isMuted, setIsMutedState] = useState<boolean>(false);
   const [eqEnabled, setEqEnabledState] = useState<boolean>(false);
   const [eqBands, setEqBandsState] = useState<number[]>([0, 0, 0, 0, 0]);
+  const [spatialAudioEnabled, setSpatialAudioEnabledState] = useState<boolean>(false);
+  const [spatialAudioMode, setSpatialAudioModeState] = useState<'off' | 'dts3d' | 'surround71' | 'concert' | 'studio' | 'club' | 'audiophile'>('dts3d');
+  const [spatialWidth, setSpatialWidthState] = useState<number>(1.4);
+  const [spatialRoomSize, setSpatialRoomSizeState] = useState<'small' | 'medium' | 'large' | 'arena'>('medium');
+  const [spatialBassBoost, setSpatialBassBoostState] = useState<number>(4);
+  const [spatialVocalClarity, setSpatialVocalClarityState] = useState<number>(3);
+  const [spatialTubeWarmth, setSpatialTubeWarmthState] = useState<boolean>(true);
+  const [gaplessEnabled, setGaplessEnabledState] = useState<boolean>(true);
+  const [crossfadeDuration, setCrossfadeDurationState] = useState<number>(0);
 
   const saveTimeoutRef = useRef<Record<string, any>>({});
 
@@ -150,9 +177,52 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           setEqBandsState(savedEqBands);
         }
 
-        console.log(`[PlaybackContext] Loaded settings (Quality: ${savedAudio || '320'}kbps, Engine: ${savedAudioEngine || 'youtubei'}, Format: ${savedAudioFormat || 'opus'})`);
+        const savedSpatial = await window.ipcRenderer?.invoke('get-setting', 'spatialAudioEnabled');
+        if (savedSpatial !== null && savedSpatial !== undefined) {
+          setSpatialAudioEnabledState(savedSpatial);
+        }
+
+        const savedSpatialMode = await window.ipcRenderer?.invoke('get-setting', 'spatialAudioMode');
+        if (savedSpatialMode !== null && savedSpatialMode !== undefined) {
+          setSpatialAudioModeState(savedSpatialMode);
+        }
+
+        const savedBass = await window.ipcRenderer?.invoke('get-setting', 'spatialBassBoost');
+        if (savedBass !== null && savedBass !== undefined) {
+          setSpatialBassBoostState(savedBass);
+        }
+
+        const savedVocal = await window.ipcRenderer?.invoke('get-setting', 'spatialVocalClarity');
+        if (savedVocal !== null && savedVocal !== undefined) {
+          setSpatialVocalClarityState(savedVocal);
+        }
+
+        const savedTube = await window.ipcRenderer?.invoke('get-setting', 'spatialTubeWarmth');
+        if (savedTube !== null && savedTube !== undefined) {
+          setSpatialTubeWarmthState(savedTube);
+        }
+
+        const savedWidth = await window.ipcRenderer?.invoke('get-setting', 'spatialWidth');
+        if (savedWidth !== null && savedWidth !== undefined) {
+          setSpatialWidthState(savedWidth);
+        }
+
+        const savedRoom = await window.ipcRenderer?.invoke('get-setting', 'spatialRoomSize');
+        if (savedRoom !== null && savedRoom !== undefined) {
+          setSpatialRoomSizeState(savedRoom);
+        }
+
+        const savedGapless = await window.ipcRenderer?.invoke('get-setting', 'gaplessEnabled');
+        if (savedGapless !== null && savedGapless !== undefined) {
+          setGaplessEnabledState(savedGapless);
+        }
+
+        const savedCrossfade = await window.ipcRenderer?.invoke('get-setting', 'crossfadeDuration');
+        if (savedCrossfade !== null && savedCrossfade !== undefined) {
+          setCrossfadeDurationState(savedCrossfade);
+        }
       } catch (e) {
-        console.warn('Failed to load playback settings', e);
+        console.error('Failed to load playback settings from store:', e);
       }
     };
     loadSettings();
@@ -235,6 +305,51 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     debouncedSave('eqBands', bands);
   };
 
+  const setSpatialAudioEnabled = (enabled: boolean) => {
+    setSpatialAudioEnabledState(enabled);
+    debouncedSave('spatialAudioEnabled', enabled);
+  };
+
+  const setSpatialAudioMode = (mode: 'off' | 'dts3d' | 'surround71' | 'concert' | 'studio' | 'club' | 'audiophile') => {
+    setSpatialAudioModeState(mode);
+    debouncedSave('spatialAudioMode', mode);
+  };
+
+  const setSpatialWidth = (width: number) => {
+    setSpatialWidthState(width);
+    debouncedSave('spatialWidth', width);
+  };
+
+  const setSpatialRoomSize = (size: 'small' | 'medium' | 'large' | 'arena') => {
+    setSpatialRoomSizeState(size);
+    debouncedSave('spatialRoomSize', size);
+  };
+
+  const setSpatialBassBoost = (boost: number) => {
+    setSpatialBassBoostState(boost);
+    debouncedSave('spatialBassBoost', boost);
+  };
+
+  const setSpatialVocalClarity = (clarity: number) => {
+    setSpatialVocalClarityState(clarity);
+    debouncedSave('spatialVocalClarity', clarity);
+  };
+
+  const setSpatialTubeWarmth = (enabled: boolean) => {
+    setSpatialTubeWarmthState(enabled);
+    debouncedSave('spatialTubeWarmth', enabled);
+  };
+
+  const setGaplessEnabled = (enabled: boolean) => {
+    setGaplessEnabledState(enabled);
+    debouncedSave('gaplessEnabled', enabled);
+  };
+
+  const setCrossfadeDuration = (seconds: number) => {
+    setCrossfadeDurationState(seconds);
+    debouncedSave('crossfadeDuration', seconds);
+  };
+
   return (
     <PlaybackContext.Provider value={{ 
         audioQuality, setAudioQuality, 
@@ -251,7 +366,16 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         volume, setVolume,
         isMuted, setIsMuted,
         eqEnabled, setEqEnabled,
-        eqBands, setEqBands
+        eqBands, setEqBands,
+        spatialAudioEnabled, setSpatialAudioEnabled,
+        spatialAudioMode, setSpatialAudioMode,
+        spatialWidth, setSpatialWidth,
+        spatialRoomSize, setSpatialRoomSize,
+        spatialBassBoost, setSpatialBassBoost,
+        spatialVocalClarity, setSpatialVocalClarity,
+        spatialTubeWarmth, setSpatialTubeWarmth,
+        gaplessEnabled, setGaplessEnabled,
+        crossfadeDuration, setCrossfadeDuration
     }}>
       {children}
     </PlaybackContext.Provider>

@@ -77,8 +77,13 @@ const CustomDropdown: React.FC<DropdownProps> = ({ label, subLabel, options, val
     );
 };
 
-const Playback: React.FC = () => {
+interface PlaybackProps {
+    accessToken?: string;
+}
+
+const Playback: React.FC<PlaybackProps> = ({ accessToken }) => {
     const { t } = useLanguage();
+    const isSpotifyLoggedIn = !!accessToken;
     const { 
         audioQuality, setAudioQuality, 
         downloadQuality, setDownloadQuality,
@@ -89,7 +94,16 @@ const Playback: React.FC = () => {
         monoAudio, setMonoAudio,
         audioDeviceId, setAudioDeviceId,
         playbackSpeed, setPlaybackSpeed,
-        eqEnabled, setEqEnabled
+        eqEnabled, setEqEnabled,
+        spatialAudioEnabled, setSpatialAudioEnabled,
+        spatialAudioMode, setSpatialAudioMode,
+        spatialWidth, setSpatialWidth,
+        spatialRoomSize, setSpatialRoomSize,
+        spatialBassBoost, setSpatialBassBoost,
+        spatialVocalClarity, setSpatialVocalClarity,
+        spatialTubeWarmth, setSpatialTubeWarmth,
+        gaplessEnabled, setGaplessEnabled,
+        crossfadeDuration, setCrossfadeDuration
     } = usePlayback();
 
     const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
@@ -132,7 +146,8 @@ const Playback: React.FC = () => {
 
     const AUDIO_ENGINES: { value: AudioEngine; label: string }[] = [
         { value: 'youtubei', label: t('playback.engineYoutubei') },
-        { value: 'ytdlp', label: t('playback.engineYtdlp') }
+        { value: 'ytdlp', label: t('playback.engineYtdlp') },
+        { value: 'lavalink', label: t('playback.engineLavalink') || 'Lavalink (Guest / Cloud)' }
     ];
     
     const DOWNLOAD_QUALITIES: { value: DownloadQuality; label: string }[] = [
@@ -160,13 +175,15 @@ const Playback: React.FC = () => {
             </div>
 
             <div className="language-content">
-                <CustomDropdown 
-                    label={t('playback.audioEngine')}
-                    subLabel={t('playback.audioEngineSub')}
-                    options={AUDIO_ENGINES}
-                    value={audioEngine}
-                    onChange={(val) => setAudioEngine(val as AudioEngine)}
-                />
+                {isSpotifyLoggedIn && (
+                    <CustomDropdown 
+                        label={t('playback.audioEngine')}
+                        subLabel={t('playback.audioEngineSub')}
+                        options={AUDIO_ENGINES}
+                        value={audioEngine}
+                        onChange={(val) => setAudioEngine(val as AudioEngine)}
+                    />
+                )}
 
                 <CustomDropdown 
                     label={t('playback.audioQuality')}
@@ -259,6 +276,167 @@ const Playback: React.FC = () => {
                         <span className="luniq-switch-slider"></span>
                     </label>
                 </div>
+
+                <div className="settings-row" style={{ marginTop: '4px' }}>
+                    <div className="row-info" style={{ gap: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span className="row-label">{t('playback.gapless') || 'True Gapless Playback'}</span>
+                            <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.1)', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>0ms Gap</span>
+                        </div>
+                        <span className="row-sub">{t('playback.gaplessSub') || 'Pre-buffers upcoming audio to eliminate silent pauses between consecutive album tracks.'}</span>
+                    </div>
+                    <label className="luniq-switch">
+                        <input 
+                            type="checkbox" 
+                            checked={gaplessEnabled} 
+                            onChange={(e) => setGaplessEnabled(e.target.checked)} 
+                        />
+                        <span className="luniq-switch-slider"></span>
+                    </label>
+                </div>
+
+                <div className="settings-row" style={{ marginTop: '4px' }}>
+                    <div className="row-info" style={{ gap: '4px' }}>
+                        <span className="row-label">{t('playback.crossfade') || 'Audio Crossfade Matrix'}</span>
+                        <span className="row-sub">{t('playback.crossfadeSub') || 'Seamlessly blend the ending of one song into the beginning of the next (0s to 12s).'}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <input 
+                            type="range" 
+                            min="0" 
+                            max="12" 
+                            step="1"
+                            value={crossfadeDuration} 
+                            onChange={(e) => setCrossfadeDuration(Number(e.target.value))}
+                            style={{ width: '120px', accentColor: 'var(--accent-main)', cursor: 'pointer' }}
+                        />
+                        <span style={{ fontSize: '13px', fontWeight: 600, minWidth: '42px', color: 'var(--accent-main)' }}>
+                            {crossfadeDuration === 0 ? 'Off (0s)' : `${crossfadeDuration}s`}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="settings-row" style={{ marginTop: '4px' }}>
+                    <div className="row-info" style={{ gap: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span className="row-label">{t('playback.spatialAudio') || 'Luniq 3D Spatial Audio & Acoustic DSP'}</span>
+                            <span style={{ fontSize: '10px', background: 'var(--accent-main)', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>DTS/HRIR</span>
+                        </div>
+                        <span className="row-sub">{t('playback.spatialAudioSub') || 'Binaural 3D room simulation, dynamic sub-bass, and acoustic impulse response convolution.'}</span>
+                    </div>
+                    <label className="luniq-switch">
+                        <input 
+                            type="checkbox" 
+                            checked={spatialAudioEnabled} 
+                            onChange={(e) => setSpatialAudioEnabled(e.target.checked)} 
+                        />
+                        <span className="luniq-switch-slider"></span>
+                    </label>
+                </div>
+
+                {spatialAudioEnabled && (
+                    <>
+                        <CustomDropdown 
+                            label={t('playback.spatialMode') || 'Acoustic Soundstage'}
+                            subLabel={t('playback.spatialModeSub') || 'Choose binaural room model / DTS sound profile.'}
+                            options={[
+                                { value: 'dts3d', label: 'DTS:X 3D Headphone' },
+                                { value: 'surround71', label: '7.1 Cinema Surround Sound' },
+                                { value: 'audiophile', label: 'Audiophile Hi-Fi Reference' },
+                                { value: 'concert', label: 'Concert Arena Hall' },
+                                { value: 'studio', label: 'Mastering Studio' },
+                                { value: 'club', label: 'Club Deep Bass' }
+                            ]}
+                            value={spatialAudioMode}
+                            onChange={(val) => setSpatialAudioMode(val as any)}
+                        />
+
+                        <CustomDropdown 
+                            label={t('playback.roomSize') || 'Virtual Acoustic Space'}
+                            subLabel={t('playback.roomSizeSub') || 'Scale the physical acoustic dimension of the virtual room.'}
+                            options={[
+                                { value: 'small', label: 'Intimate Studio Room' },
+                                { value: 'medium', label: 'Acoustic Living Room' },
+                                { value: 'large', label: 'Cinema Theatre Space' },
+                                { value: 'arena', label: 'Stadium Arena' }
+                            ]}
+                            value={spatialRoomSize}
+                            onChange={(val) => setSpatialRoomSize(val as any)}
+                        />
+
+                        <div className="settings-row" style={{ marginTop: '4px' }}>
+                            <div className="row-info" style={{ gap: '4px' }}>
+                                <span className="row-label">{t('playback.soundstageWidth') || 'Soundstage Panoramic Width'}</span>
+                                <span className="row-sub">{t('playback.soundstageWidthSub') || 'Expands the 3D stereo separation field (100% to 200%).'}</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <input 
+                                    type="range" 
+                                    min="1.0" 
+                                    max="2.0" 
+                                    step="0.1"
+                                    value={spatialWidth} 
+                                    onChange={(e) => setSpatialWidth(Number(e.target.value))}
+                                    style={{ width: '120px', accentColor: 'var(--accent-main)', cursor: 'pointer' }}
+                                />
+                                <span style={{ fontSize: '13px', fontWeight: 600, minWidth: '42px', color: 'var(--accent-main)' }}>{Math.round(spatialWidth * 100)}%</span>
+                            </div>
+                        </div>
+
+                        <div className="settings-row" style={{ marginTop: '4px' }}>
+                            <div className="row-info" style={{ gap: '4px' }}>
+                                <span className="row-label">{t('playback.tubeWarmth') || 'Analog Vacuum Tube Warmth'}</span>
+                                <span className="row-sub">{t('playback.tubeWarmthSub') || 'Emulates analog triode tube saturation and rich 2nd-order harmonics (inspired by ViPER4Android/JamesDSP).'}</span>
+                            </div>
+                            <label className="luniq-switch">
+                                <input 
+                                    type="checkbox" 
+                                    checked={spatialTubeWarmth} 
+                                    onChange={(e) => setSpatialTubeWarmth(e.target.checked)} 
+                                />
+                                <span className="luniq-switch-slider"></span>
+                            </label>
+                        </div>
+
+                        <div className="settings-row" style={{ marginTop: '4px' }}>
+                            <div className="row-info" style={{ gap: '4px' }}>
+                                <span className="row-label">{t('playback.bassBoost') || 'Dynamic Sub-Bass Sculptor'}</span>
+                                <span className="row-sub">{t('playback.bassBoostSub') || 'Enhance low-end punch without digital clipping (+0 to +12 dB).'}</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <input 
+                                    type="range" 
+                                    min="0" 
+                                    max="12" 
+                                    step="1"
+                                    value={spatialBassBoost} 
+                                    onChange={(e) => setSpatialBassBoost(Number(e.target.value))}
+                                    style={{ width: '120px', accentColor: 'var(--accent-main)', cursor: 'pointer' }}
+                                />
+                                <span style={{ fontSize: '13px', fontWeight: 600, minWidth: '42px', color: 'var(--accent-main)' }}>+{spatialBassBoost} dB</span>
+                            </div>
+                        </div>
+
+                        <div className="settings-row" style={{ marginTop: '4px' }}>
+                            <div className="row-info" style={{ gap: '4px' }}>
+                                <span className="row-label">{t('playback.vocalClarity') || 'Vocal & Dialogue Clarity'}</span>
+                                <span className="row-sub">{t('playback.vocalClaritySub') || 'Boost lyrical frequency presence in songs (+0 to +8 dB).'}</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <input 
+                                    type="range" 
+                                    min="0" 
+                                    max="8" 
+                                    step="1"
+                                    value={spatialVocalClarity} 
+                                    onChange={(e) => setSpatialVocalClarity(Number(e.target.value))}
+                                    style={{ width: '120px', accentColor: 'var(--accent-main)', cursor: 'pointer' }}
+                                />
+                                <span style={{ fontSize: '13px', fontWeight: 600, minWidth: '42px', color: 'var(--accent-main)' }}>+{spatialVocalClarity} dB</span>
+                            </div>
+                        </div>
+                    </>
+                )}
 
                 <CustomDropdown 
                     label={t('playback.outputDevice') || 'Output Device'}

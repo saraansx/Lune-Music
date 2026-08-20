@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import './LogsModal.css';
 
 interface LogEntry {
@@ -61,7 +62,7 @@ const LogsModal: React.FC<LogsModalProps> = ({ onClose }) => {
         }
     }, [logs]);
 
-    return (
+    return ReactDOM.createPortal(
         <div className="logs-modal-overlay">
             <div className={`logs-modal-window ${isMaximized ? 'maximized' : ''}`}>
                 <div className="logs-modal-header">
@@ -126,7 +127,8 @@ const LogsModal: React.FC<LogsModalProps> = ({ onClose }) => {
                     </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

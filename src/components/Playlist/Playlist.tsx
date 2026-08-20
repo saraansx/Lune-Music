@@ -28,7 +28,7 @@ interface PlaylistProps {
     onArtistSelect?: (id: string | null, name: string) => void;
 }
 
-const Playlist: React.FC<PlaylistProps> = ({ accessToken: _accessToken, cookies: _cookies, playlistId, isAlbum: isAlbumProp, onBack, onHome, onPlaylistSelect, onArtistSelect }) => {
+const Playlist: React.FC<PlaylistProps> = ({ accessToken, cookies: _cookies, playlistId, isAlbum: isAlbumProp, onBack, onHome, onPlaylistSelect, onArtistSelect }) => {
     const {
         currentTrack,
         isShuffle,
@@ -190,60 +190,72 @@ const Playlist: React.FC<PlaylistProps> = ({ accessToken: _accessToken, cookies:
                 }
 
                 
+                // ── Liked Songs (Spotify API when logged in, or Local SQLite database for Guest) ──
                 if (playlistId === 'liked-songs') {
-                    try {
-                        const firstPage = await api.library.tracks({ limit: 50 });
+                    if (accessToken && api?.library) {
+                        try {
+                            const firstPage = await api.library.tracks({ limit: 50 });
 
+                            setPlaylist({
+                                name: t('playlist.likedSongs'),
+                                description: t('playlist.yourLikedSongs'),
+                                coverUrl: '', // Will default to gradient
+                                ownerName: t('downloads.you'),
+                                followerCount: 0,
+                                totalTracks: firstPage.total,
+                            });
+
+                            const mapLikedSongs = (items: any[]) => items
+                                .map((t: any) => normalizeTrack(t, lowDataMode))
+                                .filter((t: LuniqTrack) => t.id);
+
+                            let allTracks = mapLikedSongs(firstPage.items);
+                            const totalTracks = firstPage.total;
+
+                            if (allTracks.length < totalTracks) {
+                                const PAGE_SIZE = 50;
+                                const promises = [];
+                                for (let offset = allTracks.length; offset < totalTracks; offset += PAGE_SIZE) {
+                                    promises.push(
+                                        api.library.tracks({ offset, limit: PAGE_SIZE })
+                                            .then(res => res.items)
+                                            .catch(() => [])
+                                    );
+                                }
+                                const results = await Promise.all(promises);
+                                for (const r of results) {
+                                    allTracks = [...allTracks, ...mapLikedSongs(r)];
+                                }
+                            }
+
+                            setTracks(allTracks);
+                            setLoading(false);
+                            return;
+
+                        } catch (e) {
+                            console.warn("Failed to load Spotify liked songs, falling back to local database", e);
+                        }
+                    }
+
+                    // Guest mode / Fallback: load from local SQLite favorites table
+                    try {
+                        const favorites = await window.ipcRenderer.invoke('get-local-favorites');
                         setPlaylist({
-                            name: t('playlist.likedSongs'),
-                            description: t('playlist.yourLikedSongs'),
-                            coverUrl: '', // Will default to gradient
+                            name: t('playlist.likedSongs') || 'Liked Songs',
+                            description: t('playlist.yourLikedSongs') || 'Your collection of favorite tracks',
+                            coverUrl: '', // Uses the gradient
                             ownerName: t('downloads.you'),
                             followerCount: 0,
-                            totalTracks: firstPage.total,
+                            totalTracks: favorites?.length || 0,
+                            isLocal: true,
                         });
-
-                        const mapLikedSongs = (items: any[]) => items
-                            .map((t: any) => normalizeTrack(t, lowDataMode))
-                            .filter((t: LuniqTrack) => t.id);
-
-                        let allTracks = mapLikedSongs(firstPage.items);
-                        const totalTracks = firstPage.total;
-
-                        if (allTracks.length < totalTracks) {
-                            const PAGE_SIZE = 50;
-                            const promises = [];
-                            
-                            
-                            
-                            
-                            
-                            for (let offset = allTracks.length; offset < totalTracks; offset += PAGE_SIZE) {
-                                promises.push(
-                                    api.library.tracks({ offset, limit: PAGE_SIZE })
-                                        .then(res => res.items)
-                                        .catch(() => [])
-                                );
-                            }
-                            const results = await Promise.all(promises);
-                            
-                            
-                            
-                            for (const r of results) {
-                                allTracks = [...allTracks, ...mapLikedSongs(r)];
-                            }
-                        }
-
-                        setTracks(allTracks);
-                        setLoading(false);
-                        return;
-
-                    } catch (e) {
-                        console.error("Failed to load liked songs", e);
-                        setError(t('playlist.failedLikedSongs'));
-                        setLoading(false);
-                        return;
+                        setTracks((favorites || []).map((f: any) => normalizeTrack(f, lowDataMode)));
+                    } catch (err) {
+                        console.error("Failed to load local favorites in guest mode", err);
+                        setTracks([]);
                     }
+                    setLoading(false);
+                    return;
                 }
 
                 

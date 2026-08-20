@@ -1,7 +1,15 @@
+export interface LyricWord {
+    time: number;
+    endTime?: number;
+    text: string;
+}
+
 export interface LyricLine {
     time: number;
+    endTime?: number;
     text: string;
     romanizedText?: string;
+    words?: LyricWord[];
 }
 
 export const parseTimeToSeconds = (timeStr: string): number => {
@@ -98,9 +106,30 @@ export const convertTTMLToLRC = (ttmlText: string): {
         for (let i = 0; i < paragraphs.length; i++) {
             const p = paragraphs[i];
             const begin = p.getAttribute("begin");
-            const text = p.textContent?.trim() || "";
             const key = getAttributeBySuffix(p, "key");
             const romText = key ? romMap[key] : "";
+            
+            // Check for word-level / syllable spans (<span begin="..." end="...">word</span>)
+            const spans = p.getElementsByTagName("span");
+            let lineSyncedWithWords = "";
+            
+            if (spans.length > 0) {
+                const pSecs = begin ? parseTimeToSeconds(begin) : 0;
+                lineSyncedWithWords = `${secondsToLrcTime(pSecs)} `;
+                for (let s = 0; s < spans.length; s++) {
+                    const span = spans[s];
+                    const sBegin = span.getAttribute("begin");
+                    const sText = span.textContent || "";
+                    if (sBegin) {
+                        const sSecs = parseTimeToSeconds(sBegin);
+                        lineSyncedWithWords += `<${sSecs}>${sText}`;
+                    } else {
+                        lineSyncedWithWords += sText;
+                    }
+                }
+            }
+
+            const text = p.textContent?.trim() || "";
             
             if (text) {
                 plainLines.push(text);
@@ -110,7 +139,11 @@ export const convertTTMLToLRC = (ttmlText: string): {
                 if (begin) {
                     const secs = parseTimeToSeconds(begin);
                     const lrcTime = secondsToLrcTime(secs);
-                    syncedLines.push(`${lrcTime} ${text}`);
+                    if (lineSyncedWithWords && lineSyncedWithWords.includes('<')) {
+                        syncedLines.push(lineSyncedWithWords);
+                    } else {
+                        syncedLines.push(`${lrcTime} ${text}`);
+                    }
                     if (romText) {
                         syncedRomLines.push(`${lrcTime} ${romText}`);
                     }
@@ -143,6 +176,11 @@ export const extractTTML = (responseText: string): string => {
     }
 };
 
+/**
+ * Parses LRC lyrics with support for word-by-word / syllable-by-syllable karaoke tags:
+ * e.g. [00:12.34] <0.20>Hello <0.85>world <1.40>from <2.10>Luniq
+ * or [00:12.34] <00:12.50>Hello <00:13.20>world
+ */
 export const parseSyncedLyrics = (lrc: string): LyricLine[] => {
     if (!lrc) return [];
     
@@ -158,14 +196,67 @@ export const parseSyncedLyrics = (lrc: string): LyricLine[] => {
             const milliseconds = parseInt(match[3]);
             
             const msFactor = match[3].length === 2 ? 10 : 1;
-            const time = minutes * 60 + seconds + (milliseconds * msFactor) / 1000;
+            const lineTime = minutes * 60 + seconds + (milliseconds * msFactor) / 1000;
             
-            const text = line.replace(timeRegex, '').trim();
-            if (text) {
-                result.push({ time, text });
+            const rawText = line.replace(timeRegex, '').trim();
+            if (!rawText) return;
+
+            // Check for word-level sync tags: <0.25>Word or <00:12.50>Word
+            const wordTagRegex = /<([^>]+)>([^<]*)/g;
+            const words: LyricWord[] = [];
+            let cleanLineText = '';
+            let wordMatch: RegExpExecArray | null;
+
+            while ((wordMatch = wordTagRegex.exec(rawText)) !== null) {
+                const timeTag = wordMatch[1].trim();
+                const wordContent = wordMatch[2];
+                let wordTime = parseTimeToSeconds(timeTag);
+                
+                // If wordTime was relative to the start of the line or absolute
+                if (wordTime < lineTime && wordTime < 60) {
+                    wordTime = lineTime + wordTime;
+                }
+                
+                if (wordContent) {
+                    words.push({
+                        time: wordTime,
+                        text: wordContent
+                    });
+                    cleanLineText += wordContent;
+                }
+            }
+
+            // Assign end times for word duration calculation
+            if (words.length > 0) {
+                for (let w = 0; w < words.length; w++) {
+                    if (w < words.length - 1) {
+                        words[w].endTime = words[w + 1].time;
+                    } else {
+                        words[w].endTime = words[w].time + 1.2;
+                    }
+                }
+            }
+
+            const finalText = words.length > 0 ? cleanLineText.trim() : rawText.replace(/<[^>]+>/g, '').trim();
+            if (finalText) {
+                result.push({
+                    time: lineTime,
+                    text: finalText,
+                    words: words.length > 0 ? words : undefined
+                });
             }
         }
     });
     
-    return result.sort((a, b) => a.time - b.time);
+    // Fill in line end times based on subsequent line
+    const sorted = result.sort((a, b) => a.time - b.time);
+    for (let i = 0; i < sorted.length; i++) {
+        if (i < sorted.length - 1) {
+            sorted[i].endTime = sorted[i + 1].time;
+        } else {
+            sorted[i].endTime = sorted[i].time + 5.0;
+        }
+    }
+
+    return sorted;
 };

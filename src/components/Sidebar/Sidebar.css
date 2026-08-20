@@ -1,18 +1,25 @@
 .sidebar {
   width: 272px;
-  height: 100%;
-  background: rgba(8, 10, 14, 0.45);
+  height: calc(100% - 12px);
+  margin: 6px 6px 6px 8px;
+  background: rgba(12, 15, 22, 0.65);
   backdrop-filter: blur(40px);
   -webkit-backdrop-filter: blur(40px);
   display: flex;
   flex-direction: column;
-  padding: 14px;
+  padding: 14px 10px;
   box-sizing: border-box;
-  border-right: 1px solid rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
   overflow: hidden;
   position: relative;
   z-index: 2;
-  transition: width 0.3s cubic-bezier(0.2, 0, 0, 1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  transition: width 0.3s cubic-bezier(0.2, 0, 0, 1), border-color 0.2s ease;
+}
+
+.sidebar:hover {
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .sidebar.collapsed {
@@ -99,9 +106,10 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px 8px;
-  margin-bottom: 14px;
-  padding-left: 8px;
-  padding-right: 8px;
+  margin-top: 10px;
+  margin-bottom: 0px;
+  padding: 10px 4px 0 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .filter-pill {
@@ -109,7 +117,7 @@
   color: var(--text-dim);
   border: 1px solid transparent;
   border-radius: 20px;
-  padding: 5px 12px;
+  padding: 6px 12px;
   font-size: 12px;
   font-weight: 500;
   white-space: nowrap;
@@ -135,7 +143,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding-bottom: 24px;
+  padding-bottom: 8px;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
 }
@@ -164,7 +172,7 @@
   padding: 6px 8px;
   border-radius: 8px;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: all 0.2s ease;
   height: 56px;
 }
 
@@ -174,11 +182,12 @@
 }
 
 .library-item:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateX(2px);
 }
 
 .library-item.active {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .library-img-wrapper {

@@ -54,10 +54,23 @@ export interface IPCChannels {
     'select-directory': () => Promise<string | null>;
     'get-default-download-location': () => Promise<string>;
 
+    'get-custom-themes': () => Promise<any[]>;
+    'save-custom-theme': (themeData: any) => Promise<{ success: boolean; error?: string }>;
+    'delete-custom-theme': (themeId: string) => Promise<{ success: boolean; error?: string }>;
+    'open-themes-folder': () => Promise<boolean>;
+    'import-theme-dialog': () => Promise<{ success?: boolean; theme?: any; error?: string } | null>;
+    'select-background-image': () => Promise<{ success: boolean; filePath?: string; dataUrl?: string; error?: string } | null>;
+
     
     'minimize-window': () => void;
     'maximize-window': () => void;
     'close-window': () => void;
+    'enter-mini-player': () => Promise<boolean>;
+    'exit-mini-player': () => Promise<boolean>;
+    'toggle-mini-player': () => Promise<boolean>;
+    'is-mini-player': () => Promise<boolean>;
+    'toggle-floating-lyrics': (enabled?: boolean) => Promise<boolean>;
+    'is-floating-lyrics-open': () => Promise<boolean>;
 }
 
 export type IPCChannelName = keyof IPCChannels;

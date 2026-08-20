@@ -55,6 +55,9 @@ const Settings = React.lazy(() => import('./Settings/settings/Settings'));
 import updatesImg from './assets/Updates.png';
 import mainLogo from './assets/Main.png';
 
+const MiniPlayerView = React.lazy(() => import('./components/MiniPlayer/MiniPlayerView'));
+const FloatingLyrics = React.lazy(() => import('./components/FloatingLyrics/FloatingLyrics'));
+
 const FallbackLoader = () => (
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', width: '100%', flexDirection: 'column', color: 'var(--text-dim)', opacity: 0, animation: 'fadeIn 0.2s ease 0.1s forwards' }}>
     <div className="playing-animation" style={{ transform: 'scale(1.5)', opacity: 0.5 }}>
@@ -113,6 +116,7 @@ const MainLayout = ({
   handleSearch, 
   handlePlayerArtistClick, 
   handleSettingsClick,
+  isSettingsClosing,
   viewStack,
   isOnline
 }: any) => {
@@ -121,170 +125,227 @@ const MainLayout = ({
     setShowQueue, 
   } = usePlayer();
   const { t } = useLanguage();
+  const [isMiniPlayer, setIsMiniPlayer] = React.useState(false);
+  const [isFloatingLyrics, setIsFloatingLyrics] = React.useState(false);
+
+  React.useEffect(() => {
+    window.ipcRenderer?.invoke('is-mini-player').then(val => setIsMiniPlayer(!!val)).catch(() => {});
+    window.ipcRenderer?.invoke('is-floating-lyrics-open').then(val => setIsFloatingLyrics(!!val)).catch(() => {});
+
+    const handleMiniChange = (_e: any, isMini: boolean) => {
+      setIsMiniPlayer(isMini);
+    };
+
+    const handleLyricsChange = (_e: any, isLyrics: boolean) => {
+      setIsFloatingLyrics(isLyrics);
+    };
+
+    window.ipcRenderer?.on('mini-player-changed', handleMiniChange);
+    window.ipcRenderer?.on('floating-lyrics-changed', handleLyricsChange);
+
+    return () => {
+      window.ipcRenderer?.off('mini-player-changed', handleMiniChange);
+      window.ipcRenderer?.off('floating-lyrics-changed', handleLyricsChange);
+    };
+  }, []);
 
   return (
-    <div className="app-container" style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', background: 'transparent', overflow: 'hidden' }}>
-      <TitleBar />
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', width: '100%' }}>
-        <Sidebar
-          accessToken={credentials.accessToken}
-          cookies={credentials.cookies}
-          onPlaylistSelect={handlePlaylistSelect}
-          onArtistSelect={handleArtistSelect}
-          isOnline={isOnline}
-        />
-        <div style={{ flex: 1, overflow: 'hidden', width: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-          <div className="top-global-nav" style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', width: '100%' }}>
-            <div className="luniq-nav-btn-container" style={{ justifySelf: 'start' }}>
-              <button 
-                onClick={handlePopBack} 
-                className="luniq-nav-btn" 
-                title={t('nav.back')}
-                disabled={viewStack.length === 0}
-                style={{ opacity: viewStack.length > 0 ? 1 : 0.3, cursor: viewStack.length > 0 ? 'pointer' : 'default' }}
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-              </button>
-              {isOnline && (
-                <button 
-                  onClick={handleBackToHome} 
-                  className="luniq-nav-btn" 
-                  title={t('nav.home')}
-                  style={{ color: view === 'home' ? '#ffffff' : '#b3b3b3' }}
-                >
-                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
-                </button>
-              )}
-              {!isOnline && (
-                <div className="offline-badge" style={{ 
-                  background: 'rgba(255, 255, 255, 0.05)', 
-                  padding: '6px 12px', 
-                  borderRadius: '20px',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  color: 'rgba(255, 255, 255, 0.4)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  border: '1px solid rgba(255, 255, 255, 0.05)'
-                }}>
-                  <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#e74c3c' }}></div>
-                  {t('nav.offline')}
+    <div className="app-container main-layout-container" style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', background: 'transparent', overflow: 'hidden' }}>
+      {isMiniPlayer ? (
+        <React.Suspense fallback={<FallbackLoader />}>
+          <MiniPlayerView onArtistSelect={handlePlayerArtistClick} />
+        </React.Suspense>
+      ) : (
+        <>
+          <TitleBar />
+          <div style={{ display: 'flex', flex: 1, overflow: 'hidden', width: '100%' }}>
+            <Sidebar
+              accessToken={credentials.accessToken}
+              cookies={credentials.cookies}
+              onPlaylistSelect={handlePlaylistSelect}
+              onArtistSelect={handleArtistSelect}
+              isOnline={isOnline}
+            />
+            <div style={{ 
+              flex: 1, 
+              overflow: 'hidden', 
+              width: '100%', 
+              height: 'calc(100% - 12px)',
+              margin: '6px 8px 6px 0',
+              display: 'flex', 
+              flexDirection: 'column', 
+              position: 'relative',
+              background: 'rgba(12, 15, 22, 0.45)',
+              backdropFilter: 'blur(40px)',
+              WebkitBackdropFilter: 'blur(40px)',
+              borderRadius: '12px',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.35)',
+              transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
+            }}>
+              <div className="top-global-nav" style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', width: '100%' }}>
+                <div className="luniq-nav-btn-container" style={{ justifySelf: 'start' }}>
+                  {view !== 'settings' && (
+                    <>
+                      <button 
+                        onClick={handlePopBack} 
+                        className="luniq-nav-btn" 
+                        title={t('nav.back')}
+                        disabled={viewStack.length === 0}
+                        style={{ opacity: viewStack.length > 0 ? 1 : 0.3, cursor: viewStack.length > 0 ? 'pointer' : 'default' }}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                      </button>
+                      {isOnline && (
+                        <button 
+                          onClick={handleBackToHome} 
+                          className="luniq-nav-btn" 
+                          title={t('nav.home')}
+                          style={{ color: view === 'home' ? '#ffffff' : '#b3b3b3' }}
+                        >
+                          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+                        </button>
+                      )}
+                      {!isOnline && (
+                        <div className="offline-badge" style={{ 
+                          background: 'rgba(255, 255, 255, 0.05)', 
+                          padding: '6px 12px', 
+                          borderRadius: '20px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          color: 'rgba(255, 255, 255, 0.4)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          border: '1px solid rgba(255, 255, 255, 0.05)'
+                        }}>
+                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#e74c3c' }}></div>
+                          {t('nav.offline')}
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
-              )}
-            </div>
 
-            <div style={{ justifySelf: 'center' }}>
-              {isOnline && (
-                <SearchBar 
-                  accessToken={credentials.accessToken}
-                  cookies={credentials.cookies}
-                  onTrackViewSelect={handleTrackViewSelect}
-                  onArtistSelect={handleArtistSelect}
-                  onPlaylistSelect={handlePlaylistSelect}
-                  onSearch={handleSearch}
-                />
-              )}
-            </div>
+                <div style={{ justifySelf: 'center' }}>
+                  {isOnline && (
+                    <SearchBar 
+                      accessToken={credentials.accessToken}
+                      cookies={credentials.cookies}
+                      onTrackViewSelect={handleTrackViewSelect}
+                      onArtistSelect={handleArtistSelect}
+                      onPlaylistSelect={handlePlaylistSelect}
+                      onSearch={handleSearch}
+                    />
+                  )}
+                </div>
 
-            <div className="luniq-top-actions" style={{ justifySelf: 'end', display: 'flex', alignItems: 'center' }}>
-              <button 
-                className="luniq-nav-btn luniq-settings-btn" 
-                title={t('nav.settings')}
-                onClick={handleSettingsClick}
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="3"></circle>
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                </svg>
-              </button>
+                <div className="luniq-top-actions" style={{ justifySelf: 'end', display: 'flex', alignItems: 'center' }}>
+                  <button 
+                    className={`luniq-nav-btn luniq-settings-btn ${view === 'settings' ? 'active' : ''}`} 
+                    title={t('nav.settings')}
+                    onClick={handleSettingsClick}
+                    style={view === 'settings' ? { color: 'var(--accent, #0077f9)', background: 'rgba(var(--accent-rgb, 0, 119, 249), 0.15)' } : undefined}
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="3"></circle>
+                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div style={{ flex: 1, overflowY: 'auto', width: '100%', display: 'flex', flexDirection: 'column' }}>
+                <React.Suspense fallback={<FallbackLoader />}>
+                {view === 'home' ? (
+                  <Home
+                    accessToken={credentials?.accessToken}
+                    cookies={credentials?.cookies}
+                    onPlaylistSelect={handlePlaylistSelect}
+                    onTrackViewSelect={handleTrackViewSelect}
+                    onArtistSelect={handleArtistSelect}
+                  />
+                ) : view === 'track' && selectedTrackInfo ? (
+                  <TrackView
+                    accessToken={credentials?.accessToken}
+                    cookies={credentials?.cookies}
+                    trackId={selectedTrackInfo.id}
+                    trackName={selectedTrackInfo.name}
+                    trackImage={selectedTrackInfo.image}
+                    trackArtists={selectedTrackInfo.artists}
+                    onBack={handlePopBack}
+                    onHome={handleBackToHome}
+                    onPlaylistSelect={handlePlaylistSelect}
+                    onArtistSelect={handleArtistSelect}
+                  />
+                ) : view === 'artist' && selectedArtistId ? (
+                  <ArtistView
+                    accessToken={credentials?.accessToken}
+                    cookies={credentials?.cookies}
+                    artistId={selectedArtistId}
+                    onBack={handlePopBack}
+                    onHome={handleBackToHome}
+                    onPlaylistSelect={handlePlaylistSelect}
+                    onArtistSelect={handleArtistSelect}
+                  />
+                ) : view === 'downloads' ? (
+                  <Downloads />
+                ) : view === 'search' ? (
+                  <SearchView
+                    query={searchQuery}
+                    accessToken={credentials?.accessToken}
+                    cookies={credentials?.cookies}
+                    onTrackViewSelect={handleTrackViewSelect}
+                    onArtistSelect={handleArtistSelect}
+                    onPlaylistSelect={handlePlaylistSelect}
+                  />
+                ) : view === 'settings' ? (
+                  <Settings accessToken={credentials?.accessToken} cookies={credentials?.cookies} isClosing={isSettingsClosing} />
+                ) : (
+                  selectedPlaylistId && (
+                    <Playlist
+                      accessToken={credentials?.accessToken}
+                      cookies={credentials?.cookies}
+                      playlistId={selectedPlaylistId}
+                      isAlbum={selectedIsAlbum}
+                      onBack={handlePopBack}
+                      onHome={handleBackToHome}
+                      onPlaylistSelect={handlePlaylistSelect}
+                      onArtistSelect={handlePlayerArtistClick}
+                    />
+                  )
+                )}
+                </React.Suspense>
+              </div>
             </div>
-          </div>
-          <div style={{ flex: 1, overflowY: 'auto', width: '100%', display: 'flex', flexDirection: 'column' }}>
             <React.Suspense fallback={<FallbackLoader />}>
-            {view === 'home' ? (
-              <Home
-                accessToken={credentials.accessToken}
-                cookies={credentials.cookies}
-                onPlaylistSelect={handlePlaylistSelect}
-                onTrackViewSelect={handleTrackViewSelect}
-                onArtistSelect={handleArtistSelect}
-              />
-            ) : view === 'track' && selectedTrackInfo ? (
-              <TrackView
-                accessToken={credentials.accessToken}
-                cookies={credentials.cookies}
-                trackId={selectedTrackInfo.id}
-                trackName={selectedTrackInfo.name}
-                trackImage={selectedTrackInfo.image}
-                trackArtists={selectedTrackInfo.artists}
-                onBack={handlePopBack}
-                onHome={handleBackToHome}
-                onPlaylistSelect={handlePlaylistSelect}
-                onArtistSelect={handleArtistSelect}
-              />
-            ) : view === 'artist' && selectedArtistId ? (
-              <ArtistView
-                accessToken={credentials.accessToken}
-                cookies={credentials.cookies}
-                artistId={selectedArtistId}
-                onBack={handlePopBack}
-                onHome={handleBackToHome}
-                onPlaylistSelect={handlePlaylistSelect}
-                onArtistSelect={handleArtistSelect}
-              />
-            ) : view === 'downloads' ? (
-              <Downloads />
-            ) : view === 'search' ? (
-              <SearchView
-                query={searchQuery}
-                accessToken={credentials.accessToken}
-                cookies={credentials.cookies}
-                onTrackViewSelect={handleTrackViewSelect}
-                onArtistSelect={handleArtistSelect}
-                onPlaylistSelect={handlePlaylistSelect}
-              />
-            ) : view === 'settings' ? (
-              <Settings accessToken={credentials.accessToken} cookies={credentials.cookies} />
-            ) : (
-              selectedPlaylistId && (
-                <Playlist
-                  accessToken={credentials.accessToken}
-                  cookies={credentials.cookies}
-                  playlistId={selectedPlaylistId}
-                  isAlbum={selectedIsAlbum}
-                  onBack={handlePopBack}
-                  onHome={handleBackToHome}
-                  onPlaylistSelect={handlePlaylistSelect}
-                  onArtistSelect={handlePlayerArtistClick}
-                />
-              )
-            )}
+            <QueueView 
+              isOpen={showQueue}
+              onClose={() => setShowQueue(false)} 
+              onArtistSelect={handlePlayerArtistClick}
+            />
+            
+            <NowPlayingView
+              accessToken={credentials.accessToken}
+              cookies={credentials.cookies}
+              isFullscreen={true}
+              onArtistSelect={handlePlayerArtistClick}
+              onPlaylistSelect={handlePlaylistSelect}
+            />
+            <LyricsView />
             </React.Suspense>
           </div>
-        </div>
-        <React.Suspense fallback={<FallbackLoader />}>
-        {showQueue && (
-          <QueueView 
-            onClose={() => setShowQueue(false)} 
-            onArtistSelect={handlePlayerArtistClick}
-          />
-        )}
-        
-        <NowPlayingView
-          accessToken={credentials.accessToken}
-          cookies={credentials.cookies}
-          isFullscreen={true}
-          onArtistSelect={handlePlayerArtistClick}
-          onPlaylistSelect={handlePlaylistSelect}
-        />
-        <LyricsView />
-        </React.Suspense>
-      </div>
+        </>
+      )}
       <PlayerBar
         onArtistSelect={handlePlayerArtistClick}
         accessToken={credentials?.accessToken}
+        isHidden={isMiniPlayer}
       />
+      {isFloatingLyrics && (
+        <React.Suspense fallback={null}>
+          <FloatingLyrics onClose={() => window.ipcRenderer?.invoke('toggle-floating-lyrics', false)} />
+        </React.Suspense>
+      )}
     </div>
   );
 };
@@ -466,7 +527,7 @@ const App = () => {
 
   React.useEffect(() => {
     if (!window.ipcRenderer) return;
-    
+
     const handleAppUpdate = (_event: any, updateData: any) => {
       if (updateData.status === 'up-to-date') return;
       setAppUpdateStatus(updateData);
@@ -662,7 +723,21 @@ const App = () => {
     setView('search');
   };
 
+  const [isSettingsClosing, setIsSettingsClosing] = React.useState(false);
+  const settingsCloseTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleSettingsClick = () => {
+    if (view === 'settings') {
+      if (isSettingsClosing) return;
+      setIsSettingsClosing(true);
+      if (settingsCloseTimerRef.current) clearTimeout(settingsCloseTimerRef.current);
+      settingsCloseTimerRef.current = setTimeout(() => {
+        setIsSettingsClosing(false);
+        handlePopBack();
+      }, 300);
+      return;
+    }
+    setIsSettingsClosing(false);
     pushView();
     setView('settings');
   };
@@ -692,64 +767,60 @@ const App = () => {
     }
   };
 
-  if (isCheckingAuth) {
-    return (
-      <div style={{ 
-        position: 'fixed', 
-        inset: 0, 
-        backgroundColor: '#050608', 
-        zIndex: 'var(--z-splash)' as any
-      }}>
-        <SplashScreen onFinished={() => {}} />
-      </div>
-    );
-  }
-
-  if (isAuthenticated && credentials) {
-    return (
-      <ApiProvider 
-        accessToken={credentials.accessToken} 
-        cookies={credentials.cookies}
-        onUnauthorized={handleUnauthorized}
-      >
-        {showSplash && <SplashScreen onFinished={() => setShowSplash(false)} />}
-        <MainLayout 
-          credentials={credentials}
-          handlePopBack={handlePopBack}
-          handleBackToHome={handleBackToHome}
-          view={view}
-          selectedTrackInfo={selectedTrackInfo}
-          selectedArtistId={selectedArtistId}
-          searchQuery={searchQuery}
-          selectedPlaylistId={selectedPlaylistId}
-          selectedIsAlbum={selectedIsAlbum}
-          handlePlaylistSelect={handlePlaylistSelect}
-          handleTrackViewSelect={handleTrackViewSelect}
-          handleArtistSelect={handleArtistSelect}
-          handleSearch={handleSearch}
-          handlePlayerArtistClick={handlePlayerArtistClick}
-          handleSettingsClick={handleSettingsClick}
-          viewStack={viewStack}
-          isOnline={isOnline}
-        />
-        <MajorUpdateModal updateStatus={appUpdateStatus} setAppUpdateStatus={setAppUpdateStatus} />
-        <YtdlpUpdateModal updateStatus={ytdlpStatus} setYtdlpStatus={setYtdlpStatus} />
-        <StarPopup />
-      </ApiProvider>
-    );
-  }
-
   return (
-    <div className="login-container">
-      <TitleBar />
-      <Login onLoginSuccess={async () => {
-        const creds = await window.ipcRenderer.invoke('get-spotify-credentials');
-        if (creds) {
-          setCredentials(creds);
-          setIsAuthenticated(true);
-        }
-      }} />
-    </div>
+    <>
+      {(showSplash || isCheckingAuth) && (
+        <SplashScreen 
+          onFinished={() => {
+            if (!isCheckingAuth) setShowSplash(false);
+          }} 
+          duration={1600}
+        />
+      )}
+
+      {isAuthenticated && credentials ? (
+        <ApiProvider 
+          accessToken={credentials.accessToken} 
+          cookies={credentials.cookies}
+          onUnauthorized={handleUnauthorized}
+        >
+          <MainLayout 
+            credentials={credentials}
+            handlePopBack={handlePopBack}
+            handleBackToHome={handleBackToHome}
+            view={view}
+            selectedTrackInfo={selectedTrackInfo}
+            selectedArtistId={selectedArtistId}
+            searchQuery={searchQuery}
+            selectedPlaylistId={selectedPlaylistId}
+            selectedIsAlbum={selectedIsAlbum}
+            handlePlaylistSelect={handlePlaylistSelect}
+            handleTrackViewSelect={handleTrackViewSelect}
+            handleArtistSelect={handleArtistSelect}
+            handleSearch={handleSearch}
+            handlePlayerArtistClick={handlePlayerArtistClick}
+            handleSettingsClick={handleSettingsClick}
+            isSettingsClosing={isSettingsClosing}
+            viewStack={viewStack}
+            isOnline={isOnline}
+          />
+          <MajorUpdateModal updateStatus={appUpdateStatus} setAppUpdateStatus={setAppUpdateStatus} />
+          <YtdlpUpdateModal updateStatus={ytdlpStatus} setYtdlpStatus={setYtdlpStatus} />
+          <StarPopup />
+        </ApiProvider>
+      ) : (
+        <div className="login-container" style={{ animation: 'loginContainerFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+          <TitleBar />
+          <Login onLoginSuccess={async (newCreds?: any) => {
+            const creds = newCreds || await window.ipcRenderer.invoke('get-spotify-credentials');
+            if (creds) {
+              setCredentials(creds);
+              setIsAuthenticated(true);
+            }
+          }} />
+        </div>
+      )}
+    </>
   );
 };
 

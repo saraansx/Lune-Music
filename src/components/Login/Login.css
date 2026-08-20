@@ -88,6 +88,14 @@
     margin: 32px 0;
 }
 
+.login-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+    width: 100%;
+}
+
 .connect-btn {
     width: 260px;
     padding: 13px 22px;
@@ -129,6 +137,11 @@
 .connect-btn:hover svg {
     color: #1ed760;
     filter: drop-shadow(0 0 6px rgba(30, 215, 96, 0.2));
+}
+
+.connect-btn.guest-btn:hover svg {
+    color: #a855f7;
+    filter: drop-shadow(0 0 6px rgba(168, 85, 247, 0.4));
 }
 
 .connect-btn:active {

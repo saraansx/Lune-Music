@@ -2,21 +2,36 @@
 
 All notable changes to Luniq will be documented in this file.
 
-## [2.0.0] - 2026-07-03
+## [2.0.0] - 2026-08-20
 
 #### Added
 
-- **Track Credits Integration:** Built a beautiful new glassmorphic Track Credits UI in the Now Playing sidebar. Powered by a new Spotify GraphQL implementation, it dynamically fetches the real, comprehensive list of producers, composers, and lyricists for the currently playing track and elegantly formats them into interactive pill badges.
-- **Credits Follow Toggle:** The Track Credits section now has a working Follow/Following toggle button for artists. Clicking the button calls the Spotify `addToLibrary`/`removeFromLibrary` GraphQL mutation and persists the follow state. The button only appears for contributors with artist roles (Main Artist, Featured Artist), hiding it for lyricists, composers, and producers.
-- **Track Preview Carousel:** Added a "Scroll through previews" button on album and playlist pages. Opens a horizontal carousel of track cards with 30-second audio preview playback, progress bars, and equalizer animations. Tracks auto-advance to the next preview when finished. Uses Spotify's internal `trackPreview` GraphQL persisted query to fetch preview URLs.
-- **Preview Panel Visualizer:** Animated 5-bar audio visualizer in the top-right corner of the preview overlay, synced live to playback state (bouncing when playing, static when paused/muted).
-- **Preview Volume Slider:** Horizontal range input in the top-right cluster; dragging to 0 auto-mutes the audio, dragging back up from 0 unmutes automatically.
-- **Preview Mute/Unmute Button:** Speaker icon toggle beside the volume slider that mutes or unmutes preview audio instantly on click.
-- **Preview Top-Right Control Cluster:** Visualizer, volume pill (mute icon + slider), thin separator, and close button are now grouped together in a single top-right flex row for clean, consolidated access.
-- **Artist Info Row (Preview Panel):** Bottom-left row in the preview panel showing the artist's circular avatar, name, `·` dot separator, monthly listeners count (e.g. `3.2M monthly listeners`), and a Follow / Following toggle button — all fetched live from the Spotify API.
-- **Preview Artist Data Fetching:** `PreviewCarousel` now calls `api.artist.getArtist()` each time the active track changes to retrieve the artist's profile image and `stats.monthlyListeners`.
-- **Preview Follow / Unfollow:** The Follow button in the artist row calls `api.artist.follow()` / `api.artist.unfollow()` and reflects the state instantly without a page reload.
-- **`artistId` on Preview Tracks:** `fetchPreviewTracks` in `Playlist.tsx` now maps the first artist's ID from `LuniqTrack.artists` into each preview track object so the carousel can query artist data.
+- **Luniq 3D Spatial Audio & Acoustic Mastering DSP Engine (v6.0 Ultimate):**
+  - **7.1 Virtual Surround Matrix & Binaural HRIR Convolver:** Reconstructed multi-channel virtual room impulse responses cached in memory for zero-latency acoustic simulation across 7 acoustic environments (DTS:X 3D Headphone, 7.1 Cinema Surround, Audiophile Hi-Fi Reference, Concert Arena, Studio, and Club).
+  - **Phase-Accurate Mid/Side Stereo Expander:** Expands the soundstage stereo field from 100% to 200% width while preserving locked mono vocal clarity in the center channel.
+  - **Dual-Band Sub-Bass & Punch Bass Exciters:** Real-time harmonic low-end reinforcement at 52Hz and 95Hz without digital distortion.
+  - **Analog Vacuum Tube Warmth:** Emulates warm 2nd-order polynomial triode tube saturation inspired by ViPER4Android and JamesDSP.
+  - **Studio Peak Limiter:** Automatic brickwall peak ceiling at -0.15 dBFS to prevent digital overs and clipping.
+
+- **Studio True Gapless Playback & Equal-Power Crossfade Matrix:**
+  - **0ms True Gapless Playback:** Pre-triggers look-ahead track switching to eliminate silent pauses and buffering stalls between consecutive album tracks and live recordings.
+  - **Equal-Power Audio Crossfade Matrix (0s–12s):** Smoothly fades outgoing and incoming tracks with automated Web Audio gain curves. Configurable in **Settings -> Playback**.
+
+- **Adaptive Dynamic Color & Ambient Mesh Theme:**
+  - Real-time downsampled canvas color quantizer extracts vibrant, atmospheric, and shadow glow palettes directly from active album artwork and paints an ambient living frosted-glass mesh backdrop.
+
+- **Audiophile Bit-Perfect Direct Output (WASAPI / ASIO Readiness):**
+  - Configured hardware-level Chromium audiophile flags (`enable-exclusive-audio`, `try-supported-channel-layouts`, `audio-buffer-size 512`) to support low-latency direct-to-DAC streaming.
+
+- **Floating Island Always-on-Top Mini Player & Floating Lyrics:**
+  - Added standalone floating karaoke lyrics window and always-on-top Picture-in-Picture Mini Player with seek scrubber and live progress tracking.
+
+#### Fixed
+
+- Fixed Web Audio API `AudioContext` closed-state graph connection warnings and node disconnection exceptions on rapid DSP setting changes.
+- Fixed an issue where the next song would start at attenuated volume during crossfade transitions by resetting output gain nodes on new track playback.
+- Fixed guest/unauthenticated user profile greeting null exception (`Cannot read properties of null (reading 'uri')`).
+- Cleaned up heavy box-shadow spreads on hover across the PlayerBar, Sidebar filters, and Queue panel.
 
 #### Fixed
 
@@ -30,6 +45,8 @@ All notable changes to Luniq will be documented in this file.
 
 #### Changed
 
+- **Fullscreen Album Preview Sizing:** Enlarged the album art in fullscreen view up to 580px / 75vh with rebalanced grid proportions (1.15fr : 1fr) for an immersive layout.
+- **Lyrics View Header Polish:** Removed top album art thumbnail from the lyrics header overlay and upgraded track title/artist typography.
 - **Preview Panel Layout — Seamless Glass:** The left panel now uses a gradient fade (`rgba(8,8,20,0.82)` → transparent) instead of a hard `border-right` divider, so it blends naturally into the canvas/video side for a fully immersive look.
 - **Preview Ambient Background:** Artwork blur increased to `blur(80px) saturate(2)` for a richer, more vibrant colour-reactive backdrop behind the whole panel.
 - **Preview Canvas Card Styling:** The canvas/video card is now rounded to `16px`, has a layered box-shadow with a purple aura glow, and gets a subtle `scale(1.015)` lift on hover.

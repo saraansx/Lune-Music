@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
+import { LuniqSpatialEngine } from '../../services/audio/LuniqSpatialEngine';
+import { extractPaletteFromImage, applyPaletteToDOM } from '../../services/audio/LuniqColorExtractor';
 import "./PlayerBar.css";
 import LoopButton from "../Loop/LoopButton";
 import ShuffleButton from "../Shuffle/ShuffleButton";
@@ -26,7 +28,8 @@ interface LocalPlaylist {
 const PlayerBar: React.FC<{
   onArtistSelect?: (id: string | null, name: string) => void;
   accessToken?: string;
-}> = ({ onArtistSelect, accessToken }) => {
+  isHidden?: boolean;
+}> = ({ onArtistSelect, accessToken, isHidden }) => {
   const {
     currentTrack,
     isPlaying,
@@ -67,6 +70,14 @@ const PlayerBar: React.FC<{
     setIsMuted,
     eqEnabled,
     eqBands,
+    spatialAudioEnabled,
+    spatialAudioMode,
+    spatialWidth,
+    spatialRoomSize,
+    spatialBassBoost,
+    spatialVocalClarity,
+    spatialTubeWarmth,
+    crossfadeDuration,
   } = usePlayback();
 
   
@@ -78,9 +89,11 @@ const PlayerBar: React.FC<{
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
   const analyzerRef = useRef<AnalyserNode | null>(null);
+  const spatialEngineRef = useRef<LuniqSpatialEngine | null>(null);
   const normalizationIntervalRef = useRef<number | null>(null);
   const eqBandsRef = useRef<BiquadFilterNode[]>([]);
   const rpcSyncIntervalRef = useRef<number | null>(null);
+  const isCrossfadingRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (!audioRef.current) return;
@@ -93,21 +106,23 @@ const PlayerBar: React.FC<{
       }
     };
 
-    if (!normalizeVolume && !monoAudio && !eqEnabled) {
+    if (!normalizeVolume && !monoAudio && !eqEnabled && !spatialAudioEnabled) {
       cleanupInterval();
-      if (audioCtxRef.current && sourceRef.current) {
+      if (audioCtxRef.current && audioCtxRef.current.state !== 'closed' && sourceRef.current) {
         console.log(
-          "[Audio] Normalization, Mono & EQ OFF: Bypassing Audio Graph to save CPU",
+          "[Audio] Normalization, Mono, EQ & Spatial OFF: Bypassing Audio Graph to save CPU",
         );
-        sourceRef.current.disconnect();
-        sourceRef.current.connect(audioCtxRef.current.destination);
+        try { sourceRef.current.disconnect(); } catch (_) {}
+        try { sourceRef.current.connect(audioCtxRef.current.destination); } catch (_) {}
 
         if (gainNodeRef.current) {
-          gainNodeRef.current.gain.setTargetAtTime(
-            1.0,
-            audioCtxRef.current.currentTime,
-            0.2,
-          );
+          try {
+            gainNodeRef.current.gain.setTargetAtTime(
+              1.0,
+              audioCtxRef.current.currentTime,
+              0.2,
+            );
+          } catch (_) {}
         }
       }
       return;
@@ -118,16 +133,24 @@ const PlayerBar: React.FC<{
         console.log("[Audio] Initializing Web Audio API nodes...");
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
         audioCtxRef.current = new AudioCtx();
-        if (audioDeviceId !== "default" && (audioCtxRef.current as any).setSinkId) {
+        
+        if (audioDeviceId && audioDeviceId !== "default" && (audioCtxRef.current as any).setSinkId) {
           (audioCtxRef.current as any).setSinkId(audioDeviceId).catch((err: any) => {
-            console.error("[Audio] Failed to set initial AudioContext output device:", err);
+            console.warn("[Audio] Could not set AudioContext output device (fallback to default):", err);
           });
         }
-        sourceRef.current = audioCtxRef.current.createMediaElementSource(
-          audioRef.current,
-        );
+
+        if (!sourceRef.current && audioRef.current) {
+          try {
+            sourceRef.current = audioCtxRef.current.createMediaElementSource(audioRef.current);
+          } catch (sourceErr: any) {
+            console.warn("[Audio] createMediaElementSource already created or deferred:", sourceErr?.message || sourceErr);
+          }
+        }
+
         gainNodeRef.current = audioCtxRef.current.createGain();
         analyzerRef.current = audioCtxRef.current.createAnalyser();
+        spatialEngineRef.current = new LuniqSpatialEngine(audioCtxRef.current);
 
         analyzerRef.current.fftSize = 256;
 
@@ -145,66 +168,82 @@ const PlayerBar: React.FC<{
           return filter;
         });
 
-        console.log("[Audio] Web Audio API graph created.");
-      } catch (err) {
-        console.error("[Audio] Failed to initialize Web Audio API:", err);
+        console.log("[Audio] Web Audio API graph created successfully.");
+      } catch (err: any) {
+        console.warn("[Audio] Safe Web Audio initialization notice:", err?.message || err);
         return;
       }
     }
 
-    const audioCtx = audioCtxRef.current!;
-    const source = sourceRef.current!;
-    const gainNode = gainNodeRef.current!;
-    const analyzer = analyzerRef.current!;
+    const audioCtx = audioCtxRef.current;
+    const source = sourceRef.current;
+    const gainNode = gainNodeRef.current;
+    const analyzer = analyzerRef.current;
+    const spatialEngine = spatialEngineRef.current;
 
-    
-    
-    source.disconnect();
-    gainNode.disconnect();
-    eqBandsRef.current.forEach((filter) => filter.disconnect());
+    if (!audioCtx || audioCtx.state === 'closed' || !source || !gainNode) return;
 
-    
-    if (eqEnabled && eqBandsRef.current.length === 5) {
-      let prevNode: AudioNode = source;
+    try {
+      try { source.disconnect(); } catch (_) {}
+      try { gainNode.disconnect(); } catch (_) {}
       eqBandsRef.current.forEach((filter) => {
-        prevNode.connect(filter);
-        prevNode = filter;
+        try { filter.disconnect(); } catch (_) {}
       });
-      prevNode.connect(gainNode);
-    } else {
-      source.connect(gainNode);
-    }
+      if (spatialEngine) {
+        try { spatialEngine.outputNode.disconnect(); } catch (_) {}
+      }
 
-    gainNode.connect(audioCtx.destination);
+      // Graph Construction:
+      // source -> [EQ Bands (if enabled)] -> [Spatial Engine (if enabled)] -> gainNode -> destination
+      let currentNode: AudioNode = source;
 
-    if (normalizeVolume) {
-      
-      source.connect(analyzer);
-      console.log(
-        "[Audio] Graph: Source -> Gain (Normalize ON) -> Destination | Source -> Analyzer",
-      );
-    } else {
-      console.log(
-        "[Audio] Graph: Source -> Gain (Mono ON) -> Destination (Bypassing Analyzer)",
-      );
-    }
+      if (eqEnabled && eqBandsRef.current.length === 5) {
+        eqBandsRef.current.forEach((filter) => {
+          currentNode.connect(filter);
+          currentNode = filter;
+        });
+      }
 
-    
-    if (monoAudio) {
-      gainNode.channelCount = 1;
-      gainNode.channelCountMode = "explicit";
-    } else {
-      gainNode.channelCount = 2;
-      gainNode.channelCountMode = "max";
-    }
+      if (spatialAudioEnabled && spatialEngine) {
+        spatialEngine.applyConfig({
+          enabled: spatialAudioEnabled,
+          mode: spatialAudioMode,
+          bassBoost: spatialBassBoost,
+          vocalClarity: spatialVocalClarity,
+          tubeWarmth: spatialTubeWarmth,
+          crossfeed: true,
+          spatialWidth: spatialWidth || 1.4,
+          roomSize: spatialRoomSize || 'medium',
+          reverbMix: 1.0,
+        });
+        currentNode.connect(spatialEngine.inputNode);
+        currentNode = spatialEngine.outputNode;
+      }
 
-    
-    if (audioCtx.state === "suspended") {
-      audioCtx
-        .resume()
-        .catch((err) => console.warn("[Audio] Resume failed:", err));
+      currentNode.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      if (normalizeVolume && analyzer) {
+        try { source.connect(analyzer); } catch (_) {}
+      }
+
+      if (monoAudio) {
+        gainNode.channelCount = 1;
+        gainNode.channelCountMode = "explicit";
+      } else {
+        gainNode.channelCount = 2;
+        gainNode.channelCountMode = "max";
+      }
+
+      if (audioCtx.state === "suspended") {
+        audioCtx
+          .resume()
+          .catch((err) => console.warn("[Audio] Resume failed:", err));
+      }
+    } catch (graphErr) {
+      console.warn("[Audio] Graph connection warning:", graphErr);
     }
-  }, [normalizeVolume, monoAudio, eqEnabled]); 
+  }, [normalizeVolume, monoAudio, eqEnabled, spatialAudioEnabled, spatialAudioMode, spatialWidth, spatialRoomSize, spatialBassBoost, spatialVocalClarity, spatialTubeWarmth]); 
 
   
   useEffect(() => {
@@ -319,12 +358,12 @@ const PlayerBar: React.FC<{
       }
 
       // Apply to HTMLAudioElement (for fallback/direct routing when graph is bypassed)
-      if (audioRef.current && audioRef.current.setSinkId) {
+      if (audioRef.current && (audioRef.current as any).setSinkId && sinkId) {
         try {
           console.log(`[Audio] Switching HTMLAudioElement output device to: ${audioDeviceId}`);
-          await audioRef.current.setSinkId(sinkId);
-        } catch (err) {
-          console.error("[Audio] Failed to set HTMLAudioElement output device:", err);
+          await (audioRef.current as any).setSinkId(sinkId);
+        } catch (err: any) {
+          console.warn("[Audio] HTMLAudioElement setSinkId notice (default device active):", err?.message || err);
         }
       }
     };
@@ -369,7 +408,12 @@ const PlayerBar: React.FC<{
     setIsLoop(modes[nextIndex]);
   };
   const onToggleQueue = () => {
-    setShowQueue(!showQueue);
+    const nextState = !showQueue;
+    if (nextState) {
+      setShowFullNowPlaying(false);
+      setShowLyrics(false);
+    }
+    setShowQueue(nextState);
   };
   const onToggleFullNowPlaying = () => {
     const nextState = !showFullNowPlaying;
@@ -570,6 +614,17 @@ const PlayerBar: React.FC<{
       audioRef.current.volume = isMuted ? 0 : volume;
     }
   }, [volume, isMuted]);
+
+  // Dynamic Adaptive Color Mesh Palette Update
+  useEffect(() => {
+    if (currentTrack && currentTrack.albumArt) {
+      extractPaletteFromImage(currentTrack.albumArt).then((palette) => {
+        applyPaletteToDOM(palette);
+      }).catch((err) => {
+        console.warn('[PlayerBar] Palette extraction failed:', err);
+      });
+    }
+  }, [currentTrack?.id, currentTrack?.albumArt]);
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -822,6 +877,15 @@ const PlayerBar: React.FC<{
           if (audioCtxRef.current?.state === "suspended") {
             audioCtxRef.current.resume();
           }
+          
+          // Restore Web Audio DSP gain node to full volume (fixes crossfade attenuation bug)
+          if (gainNodeRef.current && audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+            try {
+              gainNodeRef.current.gain.cancelScheduledValues(audioCtxRef.current.currentTime);
+              gainNodeRef.current.gain.setValueAtTime(1.0, audioCtxRef.current.currentTime);
+            } catch (_) {}
+          }
+
           const playPromise = audioRef.current.play();
           if (playPromise !== undefined) {
             playPromise.catch(() => {
@@ -940,6 +1004,127 @@ const PlayerBar: React.FC<{
     window.ipcRenderer?.send("thumbar-update", { isPlaying, hasTrack: !!currentTrack });
   }, [isPlaying, !!currentTrack]);
 
+  // System Media Transport Controls (SMTC) & Headphone Touch Controls Integration
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+
+    if (!currentTrack) {
+      navigator.mediaSession.metadata = null;
+      navigator.mediaSession.playbackState = 'none';
+      return;
+    }
+
+    try {
+      const artwork = currentTrack.albumArt ? [
+        { src: currentTrack.albumArt, sizes: '96x96', type: 'image/jpeg' },
+        { src: currentTrack.albumArt, sizes: '128x128', type: 'image/jpeg' },
+        { src: currentTrack.albumArt, sizes: '192x192', type: 'image/jpeg' },
+        { src: currentTrack.albumArt, sizes: '256x256', type: 'image/jpeg' },
+        { src: currentTrack.albumArt, sizes: '512x512', type: 'image/jpeg' },
+      ] : [];
+
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: currentTrack.name || 'Unknown Track',
+        artist: currentTrack.artist || 'Unknown Artist',
+        album: currentTrack.albumName || 'Luniq Music',
+        artwork: artwork,
+      });
+    } catch (err) {
+      console.warn('[MediaSession] Failed to set metadata:', err);
+    }
+  }, [currentTrack?.id, currentTrack?.name, currentTrack?.artist, currentTrack?.albumName, currentTrack?.albumArt]);
+
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+    navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+  }, [isPlaying]);
+
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+
+    const updatePositionState = () => {
+      try {
+        const dur = audioRef.current?.duration || (trackDuration || (currentTrack?.durationMs ? currentTrack.durationMs / 1000 : 0));
+        const cur = audioRef.current?.currentTime || currentTime;
+        if (dur > 0 && cur >= 0 && cur <= dur) {
+          navigator.mediaSession.setPositionState({
+            duration: Math.max(0, dur),
+            playbackRate: playbackSpeed || 1,
+            position: Math.max(0, Math.min(cur, dur)),
+          });
+        }
+      } catch {
+        // Ignored if audio is transitioning or seeking
+      }
+    };
+
+    updatePositionState();
+  }, [currentTime, trackDuration, currentTrack?.durationMs, playbackSpeed]);
+
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+
+    const actionHandlers: Array<[MediaSessionAction, MediaSessionActionHandler]> = [
+      ['play', () => setIsPlaying(true)],
+      ['pause', () => setIsPlaying(false)],
+      ['stop', () => {
+        setIsPlaying(false);
+        if (audioRef.current) {
+          audioRef.current.currentTime = 0;
+        }
+      }],
+      ['previoustrack', () => {
+        onPrevRef.current(currentTimeRef.current);
+      }],
+      ['nexttrack', () => {
+        onNextRef.current();
+      }],
+      ['seekto', (details) => {
+        if (details.seekTime !== undefined && audioRef.current) {
+          audioRef.current.currentTime = details.seekTime;
+          setCurrentTime(details.seekTime);
+          const dur = audioRef.current.duration || (currentTrack?.durationMs ? currentTrack.durationMs / 1000 : 0);
+          if (dur > 0) setProgress((details.seekTime / dur) * 100);
+          window.dispatchEvent(new CustomEvent("luniq:timeupdate", { detail: { currentTime: details.seekTime, duration: dur } }));
+        }
+      }],
+      ['seekforward', (details) => {
+        const offset = details.seekOffset || 10;
+        if (audioRef.current) {
+          const target = Math.min(audioRef.current.duration || 0, audioRef.current.currentTime + offset);
+          audioRef.current.currentTime = target;
+          setCurrentTime(target);
+        }
+      }],
+      ['seekbackward', (details) => {
+        const offset = details.seekOffset || 10;
+        if (audioRef.current) {
+          const target = Math.max(0, audioRef.current.currentTime - offset);
+          audioRef.current.currentTime = target;
+          setCurrentTime(target);
+        }
+      }],
+    ];
+
+    for (const [action, handler] of actionHandlers) {
+      try {
+        navigator.mediaSession.setActionHandler(action, handler);
+      } catch {
+        // Some browser engines might not support all optional action handlers
+      }
+    }
+
+    return () => {
+      for (const [action] of actionHandlers) {
+        try {
+          navigator.mediaSession.setActionHandler(action, null);
+        } catch {
+          // Ignored
+        }
+      }
+    };
+  }, [setIsPlaying, currentTrack?.durationMs]);
+
   useEffect(() => {
     const handleRestart = (e: Event) => {
       if (audioRef.current) {
@@ -979,6 +1164,36 @@ const PlayerBar: React.FC<{
     };
   }, [setIsPlaying]);
 
+  useEffect(() => {
+    const handleQueryTime = () => {
+      if (audioRef.current) {
+        const cur = audioRef.current.currentTime || 0;
+        const dur = audioRef.current.duration || (currentTrack?.durationMs ? currentTrack.durationMs / 1000 : 0);
+        window.dispatchEvent(new CustomEvent("luniq:timeupdate", { detail: { currentTime: cur, duration: dur } }));
+      }
+    };
+    window.addEventListener("luniq:query-time", handleQueryTime);
+    return () => window.removeEventListener("luniq:query-time", handleQueryTime);
+  }, [currentTrack?.durationMs]);
+
+  useEffect(() => {
+    const handleRequestSeek = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail && typeof customEvent.detail.time === 'number' && audioRef.current) {
+        const target = customEvent.detail.time;
+        audioRef.current.currentTime = target;
+        setCurrentTime(target);
+        const dur = audioRef.current.duration || (currentTrack?.durationMs ? currentTrack.durationMs / 1000 : 0);
+        if (dur > 0) {
+          setProgress((target / dur) * 100);
+        }
+        window.dispatchEvent(new CustomEvent("luniq:timeupdate", { detail: { currentTime: target, duration: dur } }));
+      }
+    };
+    window.addEventListener("luniq:request-seek", handleRequestSeek);
+    return () => window.removeEventListener("luniq:request-seek", handleRequestSeek);
+  }, [currentTrack?.durationMs]);
+
   const handleTimeUpdate = () => {
     if (audioRef.current && !isSeekingRef.current) {
       const current = audioRef.current.currentTime;
@@ -988,7 +1203,31 @@ const PlayerBar: React.FC<{
         setProgress((current / dur) * 100);
       }
 
-      window.dispatchEvent(new CustomEvent("luniq:timeupdate", { detail: { currentTime: current } }));
+      window.dispatchEvent(new CustomEvent("luniq:timeupdate", { detail: { currentTime: current, duration: dur } }));
+
+      // Studio Dynamic Crossfade Matrix & Seamless Transition Trigger
+      if (dur > 10 && isLoop !== 'one' && crossfadeDuration > 0) {
+        const remaining = dur - current;
+
+        if (remaining <= crossfadeDuration && !isCrossfadingRef.current) {
+          isCrossfadingRef.current = true;
+          console.log(`[PlayerBar] 🎚 Crossfade Matrix blending (${remaining.toFixed(1)}s left, window=${crossfadeDuration}s)`);
+          
+          if (gainNodeRef.current && audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+            try {
+              gainNodeRef.current.gain.cancelScheduledValues(audioCtxRef.current.currentTime);
+              gainNodeRef.current.gain.setValueAtTime(1.0, audioCtxRef.current.currentTime);
+              gainNodeRef.current.gain.linearRampToValueAtTime(0.05, audioCtxRef.current.currentTime + remaining);
+            } catch (_) {}
+          }
+
+          // Trigger next track advance smoothly
+          handleSkip();
+          setTimeout(() => {
+            isCrossfadingRef.current = false;
+          }, (crossfadeDuration + 1) * 1000);
+        }
+      }
 
       if (currentTrack && Math.abs(current - lastSavedTime.current) > 2) {
         localStorage.setItem("luniq_player_progress", String(current));
@@ -1165,11 +1404,14 @@ const PlayerBar: React.FC<{
   if (!currentTrack) return null;
 
   return (
-    <div className={`player-bar ${isLoading ? "is-loading" : ""}`}>
+    <div 
+      className={`player-bar ${isLoading ? "is-loading" : ""}`}
+      style={isHidden ? { display: "none" } : undefined}
+    >
       <audio
         ref={audioRef}
         src={streamUrl || undefined}
-        crossOrigin="anonymous"
+        crossOrigin={streamUrl?.startsWith("luniq-local:") ? undefined : "anonymous"}
         loop={isLoop === "one"}
         onPlay={() => {
           if (audioRef.current) {
@@ -1648,6 +1890,49 @@ const PlayerBar: React.FC<{
             <path d="M9 18V5l12-2v13"></path>
             <circle cx="6" cy="18" r="3"></circle>
             <circle cx="18" cy="16" r="3"></circle>
+          </svg>
+        </button>
+
+        <button
+          className="control-btn"
+          onClick={() => window.ipcRenderer?.invoke("toggle-floating-lyrics")}
+          title={t("player.floatingLyrics") || "Floating Lyrics"}
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ opacity: 0.8 }}
+          >
+            <rect x="2" y="6" width="20" height="12" rx="6" ry="6"></rect>
+            <path d="M7 12h10"></path>
+            <path d="M12 9v6"></path>
+          </svg>
+        </button>
+
+        <button
+          className="control-btn"
+          onClick={() => window.ipcRenderer?.invoke("enter-mini-player")}
+          title={t("player.miniPlayer") || "Mini Player"}
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ opacity: 0.8 }}
+          >
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <rect x="12" y="9" width="8" height="6" rx="1" fill="currentColor" fillOpacity="0.2"></rect>
           </svg>
         </button>
 

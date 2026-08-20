@@ -28,7 +28,15 @@ class SpotifyUserEndpoint {
         });
 
         SpotifyError.mayThrow(res);
-        const data = res.data.me;
+        const data = res.data?.me;
+        if (!data) {
+            return {
+                id: "",
+                display_name: "",
+                images: [],
+                uri: "",
+            };
+        }
         return {
             id: data.uri?.split(":").pop() || "",
             display_name: data.profile?.name || data.name || data.displayName || "",

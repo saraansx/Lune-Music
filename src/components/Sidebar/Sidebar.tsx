@@ -78,8 +78,16 @@ const Sidebar: React.FC<SidebarProps> = ({ accessToken: _accessToken, cookies, o
         }
     };
 
+    const hasSpDc = cookies?.some((c: any) => c.name === 'sp_dc');
+
     const fetchLibrary = useCallback(async (isMore = false) => {
-        if (!api || !cookies || !isOnline) return;
+        if (!api || !isOnline) return;
+        if (!hasSpDc && activeFilter !== 'Local') {
+            setLoading(false);
+            setItems([]);
+            setHasMore(false);
+            return;
+        }
         if (isMore && (!hasMore || isLoadingMore)) return;
         
         try {
@@ -288,39 +296,6 @@ const Sidebar: React.FC<SidebarProps> = ({ accessToken: _accessToken, cookies, o
                 )}
             </div>
 
-            {!isCollapsed && (
-                <div className="library-filters">
-                    {isOnline && (
-                        <>
-                            <button
-                                className={`filter-pill ${activeFilter === 'Playlists' ? 'active' : ''}`}
-                                onClick={() => setActiveFilter('Playlists')}
-                            >
-                                {t('sidebar.playlists')}
-                            </button>
-                            <button
-                                className={`filter-pill ${activeFilter === 'Albums' ? 'active' : ''}`}
-                                onClick={() => setActiveFilter('Albums')}
-                            >
-                                {t('sidebar.albums')}
-                            </button>
-                            <button
-                                className={`filter-pill ${activeFilter === 'Artists' ? 'active' : ''}`}
-                                onClick={() => setActiveFilter('Artists')}
-                            >
-                                {t('sidebar.artists')}
-                            </button>
-                        </>
-                    )}
-                    <button
-                        className={`filter-pill ${activeFilter === 'Local' ? 'active' : ''}`}
-                        onClick={() => setActiveFilter('Local')}
-                    >
-                        {t('sidebar.local')}
-                    </button>
-                </div>
-            )}
-
             <div className="library-list">
                 {error && <p className="error-text" style={{ padding: '8px', color: '#ff5555', fontSize: '12px' }}>{error}</p>}
 
@@ -475,6 +450,39 @@ const Sidebar: React.FC<SidebarProps> = ({ accessToken: _accessToken, cookies, o
                     </div>
                 )}
             </div>
+
+            {!isCollapsed && (
+                <div className="library-filters">
+                    {isOnline && (
+                        <>
+                            <button
+                                className={`filter-pill ${activeFilter === 'Playlists' ? 'active' : ''}`}
+                                onClick={() => setActiveFilter('Playlists')}
+                            >
+                                {t('sidebar.playlists')}
+                            </button>
+                            <button
+                                className={`filter-pill ${activeFilter === 'Albums' ? 'active' : ''}`}
+                                onClick={() => setActiveFilter('Albums')}
+                            >
+                                {t('sidebar.albums')}
+                            </button>
+                            <button
+                                className={`filter-pill ${activeFilter === 'Artists' ? 'active' : ''}`}
+                                onClick={() => setActiveFilter('Artists')}
+                            >
+                                {t('sidebar.artists')}
+                            </button>
+                        </>
+                    )}
+                    <button
+                        className={`filter-pill ${activeFilter === 'Local' ? 'active' : ''}`}
+                        onClick={() => setActiveFilter('Local')}
+                    >
+                        {t('sidebar.local')}
+                    </button>
+                </div>
+            )}
 
             {showCreateModal && (
                 <CreatePlaylistModal

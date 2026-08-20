@@ -35,6 +35,19 @@ export interface StoreSchema {
     app_version?: string;
     has_starred?: boolean;
     startup_count?: number;
+    lavalinkHost?: string;
+    lavalinkPort?: number;
+    lavalinkPassword?: string;
+    lavalinkSecure?: boolean;
+    floatingLyricsEnabled?: boolean;
+    floatingLyricsBounds?: {
+        x?: number;
+        y?: number;
+        width?: number;
+        height?: number;
+    };
+    gaplessEnabled?: boolean;
+    crossfadeDuration?: number;
 }
 
 export const schema = {
@@ -78,4 +91,18 @@ export const schema = {
     app_version: { type: 'string' },
     has_starred: { type: 'boolean', default: false },
     startup_count: { type: 'number', default: 0 },
-} as const;
+    lavalinkHost: { type: 'string', default: 'us1.visihost.in' },
+    lavalinkPort: { type: 'number', default: 3059 },
+    lavalinkPassword: { type: 'string', default: 'aeronova' },
+    lavalinkSecure: { type: 'boolean', default: false },
+    floatingLyricsEnabled: { type: 'boolean', default: true },
+    floatingLyricsBounds: {
+        type: 'object',
+        properties: {
+            width: { type: 'number' },
+            height: { type: 'number' },
+            x: { type: 'number' },
+            y: { type: 'number' }
+        }
+    },
+};

@@ -1,7 +1,19 @@
 import './shim.js';
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
+process.setMaxListeners(30);
+if (process.stdout) process.stdout.setMaxListeners(30);
+if (process.stderr) process.stderr.setMaxListeners(30);
 import { app, BrowserWindow, ipcMain, Menu, protocol, globalShortcut, session, Tray, nativeImage } from 'electron'
+
+// Performance, GPU Acceleration Switches
 app.commandLine.appendSwitch('log-level', '3');
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('enable-zero-copy');
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
+app.commandLine.appendSwitch('enable-hardware-overlays', 'single-fullscreen,single-on-top,underlay');
+app.commandLine.appendSwitch('disable-background-timer-throttling');
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=512');
 import { autoUpdater } from 'electron-updater'
 import * as nodeUrl from 'node:url'
 import path from 'node:path'
@@ -71,7 +83,17 @@ process.on('unhandledRejection', (reason, promise) => {
 
 
 protocol.registerSchemesAsPrivileged([
-  { scheme: 'luniq-local', privileges: { bypassCSP: true, stream: true, secure: true, standard: true, supportFetchAPI: true } }
+  { 
+    scheme: 'luniq-local', 
+    privileges: { 
+      bypassCSP: true, 
+      stream: true, 
+      secure: true, 
+      standard: true, 
+      supportFetchAPI: true,
+      corsEnabled: true
+    } 
+  }
 ]);
 
 process.env.APP_ROOT = path.join(__dirname, '..')
@@ -125,13 +147,17 @@ if (!gotTheLock) {
     minHeight: 600,
     resizable: true,
     icon: iconPath,
-    backgroundColor: '#050608',
+    backgroundColor: '#06080c',
     frame: false, 
     transparent: false,
     show: false,
+    paintWhenInitiallyHidden: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
       webSecurity: false,
+      backgroundThrottling: false,
+      spellcheck: false,
+      enableWebSQL: false,
     },
   })
 
@@ -163,11 +189,11 @@ if (!gotTheLock) {
   });
 
   win.on('resize', () => {
-    if (win) store.set('windowBounds', win.getBounds());
+    if (win && !isMiniPlayerMode) store.set('windowBounds', win.getBounds());
   });
 
   win.on('move', () => {
-    if (win) store.set('windowBounds', win.getBounds());
+    if (win && !isMiniPlayerMode) store.set('windowBounds', win.getBounds());
   });
 
   Menu.setApplicationMenu(null)
@@ -311,6 +337,76 @@ ipcMain.handle('maximize-window', () => {
   else win?.maximize();
 });
 ipcMain.handle('close-window', () => win?.close());
+
+let isMiniPlayerMode = false;
+let standardWindowBounds: { x: number; y: number; width: number; height: number } | null = null;
+
+function enterMiniPlayer() {
+  if (!win || isMiniPlayerMode) return true;
+  
+  if (win.isMaximized()) {
+    win.unmaximize();
+  }
+  
+  standardWindowBounds = win.getBounds();
+  isMiniPlayerMode = true;
+
+  win.setMinimumSize(280, 110);
+  win.setSize(340, 130);
+  win.setAlwaysOnTop(true, 'screen-saver');
+  win.setResizable(true);
+  
+  win.webContents.send('mini-player-changed', true);
+  return true;
+}
+
+function exitMiniPlayer() {
+  if (!win || !isMiniPlayerMode) return false;
+  isMiniPlayerMode = false;
+
+  win.setAlwaysOnTop(false);
+  win.setMinimumSize(900, 600);
+
+  if (standardWindowBounds && standardWindowBounds.width >= 800 && standardWindowBounds.height >= 500) {
+    win.setBounds(standardWindowBounds);
+  } else {
+    const saved = store.get('windowBounds');
+    if (saved && saved.width >= 800 && saved.height >= 500) {
+      win.setBounds(saved);
+    } else {
+      win.setSize(1400, 800);
+      win.center();
+    }
+  }
+
+  win.webContents.send('mini-player-changed', false);
+  return false;
+}
+
+ipcMain.handle('enter-mini-player', () => enterMiniPlayer());
+ipcMain.handle('exit-mini-player', () => exitMiniPlayer());
+ipcMain.handle('toggle-mini-player', () => {
+  if (isMiniPlayerMode) {
+    return exitMiniPlayer();
+  } else {
+    return enterMiniPlayer();
+  }
+});
+ipcMain.handle('is-mini-player', () => isMiniPlayerMode);
+
+let isFloatingLyricsOpen = false;
+
+ipcMain.handle('toggle-floating-lyrics', (_event, forcedState?: boolean) => {
+  if (typeof forcedState === 'boolean') {
+    isFloatingLyricsOpen = forcedState;
+  } else {
+    isFloatingLyricsOpen = !isFloatingLyricsOpen;
+  }
+  win?.webContents.send('floating-lyrics-changed', isFloatingLyricsOpen);
+  return isFloatingLyricsOpen;
+});
+
+ipcMain.handle('is-floating-lyrics-open', () => isFloatingLyricsOpen);
 
 
 async function harvestYouTubeCookies(): Promise<boolean> {

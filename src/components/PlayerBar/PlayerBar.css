@@ -1,18 +1,26 @@
 .player-bar {
-  width: 100%;
-  height: 80px;
-  background: rgba(10, 12, 16, 0.8);
+  width: calc(100% - 16px);
+  height: 76px;
+  margin: 0 8px 8px 8px;
+  background: rgba(12, 15, 22, 0.65);
   backdrop-filter: blur(48px);
   -webkit-backdrop-filter: blur(48px);
-  border-top: 1px solid rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 28px;
+  padding: 0 24px;
   position: relative;
-  z-index: 10000;   box-sizing: border-box;
+  z-index: 10000;
+  box-sizing: border-box;
   flex-shrink: 0;
-  transition: background 0.3s ease;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25), 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  transition: border-color 0.2s ease;
+}
+
+.player-bar:hover {
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 .player-track-info {
@@ -24,22 +32,25 @@
 
 .album-art-wrapper {
   position: relative;
-  width: 50px;
-  height: 50px;
+  width: 48px;
+  height: 48px;
   margin-right: 14px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
-  transition: transform 0.2s ease;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  border-radius: 10px;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .album-art-wrapper:hover {
-  transform: scale(1.02);
+  transform: scale(1.04);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
 }
 
 .player-album-art {
   width: 100%;
   height: 100%;
-  border-radius: 8px;
+  border-radius: 9px;
   object-fit: cover;
   display: block;
 }
@@ -54,7 +65,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: 9px;
   backdrop-filter: blur(4px);
 }
 
@@ -248,8 +259,8 @@
 }
 
 .play-pause-btn {
-  width: 34px;
-  height: 34px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   background: var(--text-main);
   color: #000;
@@ -258,47 +269,51 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 4px 14px rgba(255, 255, 255, 0.2), 0 2px 6px rgba(0, 0, 0, 0.4);
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .play-pause-btn:hover {
-  transform: scale(1.08);
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(255, 255, 255, 0.35), 0 0 16px rgba(var(--accent-rgb), 0.3);
 }
 
 .play-pause-btn:active {
-  transform: scale(0.95);
+  transform: scale(0.94);
 }
 
 /* Playback Bar (Progress) */
 .player-playback-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
   max-width: 600px;
 }
 
 .time-label {
-  color: rgba(255, 255, 255, 0.35);
-  font-size: 0.7rem;
-  font-weight: 400;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.72rem;
+  font-weight: 500;
   min-width: 38px;
   text-align: center;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 .progress-bar-wrapper {
   flex: 1;
-  height: 3px;
-  background: rgba(255, 255, 255, 0.06);
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 100px;
   position: relative;
   cursor: pointer;
-  transition: height 0.15s ease;
+  transition: height 0.2s cubic-bezier(0.2, 0, 0.2, 1), background 0.2s ease;
 }
 
 .progress-bar-wrapper:hover {
-  height: 5px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .progress-fill {
@@ -309,6 +324,7 @@
   position: absolute;
   top: 0;
   left: 0;
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.35);
   transition: background-color 0.2s ease;
 }
 
@@ -318,7 +334,7 @@
   top: 50%;
   left: 0;
   width: 100%;
-  height: 12px;
+  height: 14px;
   transform: translateY(-50%);
   margin: 0;
   opacity: 0;
@@ -330,20 +346,21 @@
 .progress-fill::after {
   content: "";
   position: absolute;
-  right: -4px;
+  right: -5px;
   top: 50%;
-  transform: translateY(-50%);
-  width: 10px;
-  height: 10px;
-  background-color: var(--accent-main);
+  transform: translateY(-50%) scale(0.6);
+  width: 12px;
+  height: 12px;
+  background-color: #ffffff;
   border-radius: 50%;
-  box-shadow: 0 0 6px rgba(var(--accent-rgb), 0.4);
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.6), 0 2px 4px rgba(0, 0, 0, 0.4);
   opacity: 0;
-  transition: opacity 0.15s ease;
+  transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .player-playback-bar:hover .progress-fill::after {
   opacity: 1;
+  transform: translateY(-50%) scale(1);
 }
 
 .player-extra-controls {

@@ -1,0 +1,321 @@
+.mini-player-container {
+    width: 100vw;
+    height: 100vh;
+    background: #090c13;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    color: var(--text-main, #ffffff);
+    font-family: inherit;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7);
+    user-select: none;
+    box-sizing: border-box;
+}
+
+.mini-player-bg {
+    position: absolute;
+    top: -20%;
+    left: -20%;
+    width: 140%;
+    height: 140%;
+    background-size: cover;
+    background-position: center;
+    filter: blur(40px) brightness(0.32) saturate(1.4);
+    opacity: 0.85;
+    z-index: 1;
+    pointer-events: none;
+    transition: background-image 0.5s ease;
+}
+
+/* Top Draggable Area */
+.mini-player-drag-bar {
+    position: relative;
+    z-index: 10;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 10px;
+    background: rgba(0, 0, 0, 0.25);
+    -webkit-app-region: drag;
+}
+
+.mini-player-logo {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    color: var(--accent-main, #0077f9);
+    opacity: 0.9;
+}
+
+.mini-player-window-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    -webkit-app-region: no-drag;
+}
+
+.mini-win-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.mini-win-btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.mini-win-btn.active {
+    color: #ffffff;
+    background: var(--accent-main, #0077f9);
+}
+
+.mini-win-btn.close:hover {
+    background: #e74c3c;
+    color: #ffffff;
+}
+
+.mini-lyrics-wrap {
+    display: flex;
+    align-items: center;
+}
+
+.mini-lyrics-active {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #ffffff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.25;
+    text-shadow: 0 0 10px rgba(var(--accent-rgb, 0, 119, 249), 0.5);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.mini-lyrics-pill-icon {
+    font-size: 10px;
+}
+
+.mini-lyrics-active.skeleton {
+    color: rgba(255, 255, 255, 0.4);
+    font-style: italic;
+}
+
+.mini-lyrics-active.idle {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* Main Content Area */
+.mini-player-content {
+    position: relative;
+    z-index: 10;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    padding: 6px 10px;
+    gap: 12px;
+    min-height: 0;
+}
+
+.mini-art-wrapper {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    border-radius: 8px;
+    overflow: hidden;
+    flex-shrink: 0;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+}
+
+.mini-art-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.25s ease;
+}
+
+.mini-art-wrapper:hover .mini-art-image {
+    transform: scale(1.06);
+}
+
+.mini-art-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.mini-art-wrapper:hover .mini-art-overlay {
+    opacity: 1;
+}
+
+/* Track Column */
+.mini-track-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 64px;
+    min-width: 0;
+}
+
+.mini-info-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+}
+
+.mini-text-wrap {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.mini-track-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #ffffff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+}
+
+.mini-track-artist {
+    font-size: 0.76rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.65);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+    cursor: pointer;
+    transition: color 0.15s ease;
+}
+
+.mini-track-artist:hover {
+    color: var(--accent-main, #0077f9);
+}
+
+.mini-btn-fav {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.mini-btn-fav:hover {
+    color: #ffffff;
+    transform: scale(1.15);
+}
+
+.mini-btn-fav.active {
+    color: #e74c3c;
+}
+
+/* Controls Row */
+.mini-controls-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.mini-time-text {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.5);
+    font-variant-numeric: tabular-nums;
+}
+
+.mini-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.mini-ctrl-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.75);
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.mini-ctrl-btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.12);
+    transform: scale(1.08);
+}
+
+.mini-ctrl-btn.play-main {
+    background: var(--accent-main, #0077f9);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 119, 249, 0.35);
+}
+
+.mini-ctrl-btn.play-main:hover {
+    background: var(--accent-hover, #0066d6);
+    transform: scale(1.12);
+}
+
+/* Bottom Progress Scrubber */
+.mini-progress-track {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    transition: height 0.15s ease;
+}
+
+.mini-player-container:hover .mini-progress-track {
+    height: 6px;
+}
+
+.mini-progress-bar {
+    height: 100%;
+    background: var(--accent-main, #0077f9);
+    border-radius: 0 2px 2px 0;
+    transition: width 0.1s linear;
+}

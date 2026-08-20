@@ -58,6 +58,12 @@
     justify-content: center;
 }
 
+.account-avatar-placeholder.guest-avatar {
+    background: rgba(var(--accent-rgb, 255, 255, 255), 0.1);
+    color: var(--accent-primary, #fff);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 .account-details {
     display: flex;
     flex-direction: column;

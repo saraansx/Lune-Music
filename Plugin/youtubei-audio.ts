@@ -16,18 +16,18 @@ const MAX_CACHE_SIZE = 200;
 const STREAM_URL_EXPIRY_SAFETY_MS = 60 * 1000;
 
 const STREAM_CLIENTS = [
-  "ANDROID_VR",
+  "IOS",
   "MWEB",
+  "WEB_REMIX",
+  "ANDROID",
+  "YTMUSIC_ANDROID",
+  "WEB",
+  "DEFAULT",
   "TV",
   "TV_EMBEDDED",
-  "ANDROID",
-  "WEB_REMIX",
-  "IOS",
-  "WEB",
+  "ANDROID_VR",
   "WEB_EMBEDDED",
   "WEB_CREATOR",
-  "YTMUSIC_ANDROID",
-  "DEFAULT",
 ] as const;
 
 type StreamClient = (typeof STREAM_CLIENTS)[number];
@@ -391,6 +391,7 @@ function getClientUserAgent(client: StreamClient): string {
           method: 'GET',
           headers: {
             'Range': 'bytes=0-1',
+            'User-Agent': ua,
           }
         });
         if (checkRes.status !== 200 && checkRes.status !== 206) {

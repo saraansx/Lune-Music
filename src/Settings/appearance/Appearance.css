@@ -203,3 +203,303 @@
     outline: 2px solid rgba(var(--accent-rgb), 0.6);
     outline-offset: 2px;
 }
+
+/* ── Custom Wallpaper Section Styles ── */
+.wallpaper-section {
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    padding-top: 20px;
+}
+
+.wallpaper-controls-panel {
+    display: flex;
+    gap: 20px;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.025);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 16px;
+    align-items: center;
+    animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (max-width: 600px) {
+    .wallpaper-controls-panel {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
+.wallpaper-preview-box {
+    width: 140px;
+    height: 90px;
+    flex-shrink: 0;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: #06080c;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.wallpaper-preview-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: filter 0.2s, opacity 0.2s;
+}
+
+.wallpaper-preview-overlay {
+    position: absolute;
+    bottom: 6px;
+    left: 6px;
+}
+
+.wallpaper-live-tag {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #ffffff;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.wallpaper-sliders-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 20px;
+}
+
+.wallpaper-control-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.wallpaper-control-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.wallpaper-control-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-dim);
+}
+
+.wallpaper-control-val {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-main);
+    font-family: monospace;
+}
+
+.wallpaper-range-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.1);
+    outline: none;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.wallpaper-range-slider:hover {
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.wallpaper-range-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 2px 8px rgba(var(--accent-rgb), 0.5);
+    cursor: pointer;
+    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.wallpaper-range-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.25);
+}
+
+.wallpaper-fit-pills {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+}
+
+.wallpaper-fit-btn {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: var(--text-dim);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    text-align: center;
+    white-space: nowrap;
+}
+
+.wallpaper-fit-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-main);
+}
+
+.wallpaper-fit-btn.active {
+    background: rgba(var(--accent-rgb), 0.15);
+    border-color: rgba(var(--accent-rgb), 0.4);
+    color: var(--text-main);
+    box-shadow: 0 2px 8px rgba(var(--accent-rgb), 0.2);
+}
+
+/* ── Theme Extensions Styles ── */
+
+.theme-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent);
+    color: #ffffff;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(var(--accent-rgb), 0.3);
+}
+
+.theme-action-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(var(--accent-rgb), 0.45);
+}
+
+.theme-action-btn.secondary {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-main);
+    box-shadow: none;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.theme-action-btn.secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.theme-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+    width: 100%;
+}
+
+.theme-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.theme-card:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.14);
+    transform: translateY(-2px);
+}
+
+.theme-card.active {
+    background: rgba(var(--accent-rgb), 0.12);
+    border-color: var(--accent);
+    box-shadow: 0 0 20px rgba(var(--accent-rgb), 0.25);
+}
+
+.theme-card-preview {
+    width: 100%;
+    height: 70px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) inset;
+}
+
+.theme-preview-sidebar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 25%;
+    height: 100%;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.theme-preview-dot {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.theme-card-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.theme-card-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.theme-card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.theme-card-author {
+    font-size: 11px;
+    color: var(--text-dim);
+}
+
+.theme-delete-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    transition: color 0.2s, background 0.2s;
+}
+
+.theme-delete-btn:hover {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.15);
+}

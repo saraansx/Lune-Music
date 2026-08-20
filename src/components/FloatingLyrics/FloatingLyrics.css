@@ -1,0 +1,225 @@
+.floating-lyrics-pill {
+    position: fixed;
+    z-index: var(--z-sticky, 9999);
+    width: 560px;
+    max-width: calc(100vw - 40px);
+    height: 56px;
+    background: rgba(12, 15, 24, 0.75);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 999px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.2) inset;
+    display: flex;
+    align-items: center;
+    padding: 6px 14px 6px 8px;
+    gap: 12px;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: grab;
+    transition: box-shadow 0.3s ease, border-color 0.3s ease, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: floatingPillEntrance 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.floating-lyrics-pill:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.7), 0 0 20px rgba(var(--accent-rgb, 0, 119, 249), 0.2);
+}
+
+.floating-lyrics-pill.is-dragging {
+    cursor: grabbing;
+    transform: scale(1.02);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8), 0 0 28px rgba(var(--accent-rgb, 0, 119, 249), 0.3);
+}
+
+.floating-lyrics-glow {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background: radial-gradient(circle at 50% 50%, rgba(var(--accent-rgb, 0, 119, 249), 0.08), transparent 70%);
+    pointer-events: none;
+}
+
+/* Left Mini Artwork */
+.floating-lyrics-left {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.floating-art-wrapper {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.floating-album-art {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.floating-art-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.floating-art-wrapper:hover .floating-art-overlay {
+    opacity: 1;
+}
+
+.floating-art-wrapper:hover .floating-album-art {
+    transform: scale(1.08);
+}
+
+/* Lyrics Content */
+.floating-lyrics-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    overflow: hidden;
+}
+
+.floating-line-active {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #ffffff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.floating-line-rom {
+    font-size: 11px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.floating-line-next {
+    font-size: 11px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.4);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.floating-line-active.idle {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.floating-track-title {
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.floating-track-artist {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.floating-line-active.skeleton {
+    color: rgba(255, 255, 255, 0.4);
+    font-style: italic;
+}
+
+.floating-dot-pulse {
+    animation: floatingPulse 1.5s ease-in-out infinite;
+}
+
+/* Hover Action Strip */
+.floating-lyrics-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    opacity: 0;
+    transform: translateX(6px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    flex-shrink: 0;
+}
+
+.floating-lyrics-pill:hover .floating-lyrics-actions,
+.floating-lyrics-actions.visible {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.floating-action-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+.floating-action-btn:hover {
+    background: rgba(255, 255, 255, 0.18);
+    color: #ffffff;
+    transform: scale(1.08);
+}
+
+.floating-action-btn.active {
+    background: var(--accent-main, #0077f9);
+    color: #ffffff;
+}
+
+.floating-lyrics-pill.is-closing {
+    animation: floatingPillExit 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+    pointer-events: none;
+}
+
+@keyframes floatingPillEntrance {
+    from {
+        opacity: 0;
+        transform: translateY(14px) scale(0.92);
+        filter: blur(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0px);
+    }
+}
+
+@keyframes floatingPillExit {
+    from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0px);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(12px) scale(0.92);
+        filter: blur(6px);
+    }
+}
+
+@keyframes floatingPulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.9; }
+}

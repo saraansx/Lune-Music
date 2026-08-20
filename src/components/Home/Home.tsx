@@ -23,14 +23,14 @@ import { LuniqTrack, normalizeTrack } from '../../types/track';
 import { usePlayback } from '../../context/PlaybackContext';
 
 interface HomeProps {
-    accessToken: string;
-    cookies: PlatformCookie[];
+    accessToken?: string;
+    cookies?: PlatformCookie[];
     onPlaylistSelect?: (id: string, isAlbum?: boolean) => void;
     onTrackViewSelect?: (trackInfo: { id: string; name: string; image: string; artists: string[] }) => void;
     onArtistSelect?: (id: string) => void;
 }
 
-const Home = ({ accessToken: _accessToken, cookies, onPlaylistSelect, onTrackViewSelect, onArtistSelect }: HomeProps) => {
+const Home = ({ accessToken, cookies, onPlaylistSelect, onTrackViewSelect, onArtistSelect }: HomeProps) => {
     const { 
         handleTrackSelect: onTrackSelect
     } = usePlayer();
@@ -49,17 +49,18 @@ const Home = ({ accessToken: _accessToken, cookies, onPlaylistSelect, onTrackVie
 
     useEffect(() => {
         const fetchUser = async () => {
+            if (!accessToken) return;
             try {
                 const profile = await api.user.me();
                 if (profile?.display_name) {
                     setUserName(profile.display_name);
                 }
             } catch (err) {
-                console.error('Failed to fetch user profile for greeting:', err);
+                console.warn('Could not fetch user profile for greeting:', err);
             }
         };
         fetchUser();
-    }, [api]);
+    }, [api, accessToken]);
 
     const greeting = useMemo(() => {
         const hour = new Date().getHours();
@@ -340,11 +341,21 @@ const Home = ({ accessToken: _accessToken, cookies, onPlaylistSelect, onTrackVie
                                 <div className="card-content">
                                     <h3 className="card-title">{item.name}</h3>
                                     <p className="card-subtitle">
-                                        {item.objectType === 'Playlist'
-                                            ? (item.owner?.display_name ? `${t('home.by')} ${item.owner.display_name}` : item.description)
-                                            : item.objectType === 'Album'
-                                                ? (item.artists && item.artists.length > 0 ? item.artists[0].name : t('home.album'))
-                                                : t('home.artist')}
+                                        {(() => {
+                                            const raw = item as any;
+                                            const artistList = raw.artists || raw.firstArtist?.items || raw.track?.artists;
+                                            if (Array.isArray(artistList) && artistList.length > 0) {
+                                                return artistList.map((a: any) => a.name || a.profile?.name).filter(Boolean).join(', ');
+                                            }
+                                            if (raw.artist) return raw.artist;
+                                            if (raw.objectType === 'Playlist') {
+                                                return raw.owner?.display_name ? `${t('home.by')} ${raw.owner.display_name}` : raw.description || t('home.playlist');
+                                            }
+                                            if (raw.objectType === 'Album') return t('home.album');
+                                            if (raw.objectType === 'Artist') return t('home.artist');
+                                            if (raw.description) return raw.description;
+                                            return t('home.track') || 'Track';
+                                        })()}
                                     </p>
                                 </div>
                             </div>
@@ -421,23 +432,41 @@ const Home = ({ accessToken: _accessToken, cookies, onPlaylistSelect, onTrackVie
                                                     className="card-image"
                                                     loading="lazy"
                                                 />
-                                                <div className="play-button" onClick={(e) => handlePlayButtonClick(e, item)}>
-                                                    <svg role="img" height="24" width="24" viewBox="0 0 24 24" fill="currentColor">
-                                                        <path d="M7.05 3.606l13.49 7.788a.7.7 0 010 1.212L7.05 20.394A.7.7 0 016 19.788V4.212a.7.7 0 011.05-.606z"></path>
-                                                    </svg>
-                                                </div>
-
+                                                {!isSixPack && (
+                                                    <div className="play-button" onClick={(e) => handlePlayButtonClick(e, item)}>
+                                                        <svg role="img" height="24" width="24" viewBox="0 0 24 24" fill="currentColor">
+                                                            <path d="M7.05 3.606l13.49 7.788a.7.7 0 010 1.212L7.05 20.394A.7.7 0 016 19.788V4.212a.7.7 0 011.05-.606z"></path>
+                                                        </svg>
+                                                    </div>
+                                                )}
                                             </div>
                                             <div className="card-content">
                                                 <h3 className="card-title">{item.name}</h3>
                                                 <p className="card-subtitle">
-                                                    {item.objectType === 'Playlist'
-                                                        ? (item.owner?.display_name ? `${t('home.by')} ${item.owner.display_name}` : item.description)
-                                                        : item.objectType === 'Album'
-                                                            ? (item.artists && item.artists.length > 0 ? item.artists[0].name : t('home.album'))
-                                                            : t('home.artist')}
+                                                    {(() => {
+                                                        const raw = item as any;
+                                                        const artistList = raw.artists || raw.firstArtist?.items || raw.track?.artists;
+                                                        if (Array.isArray(artistList) && artistList.length > 0) {
+                                                            return artistList.map((a: any) => a.name || a.profile?.name).filter(Boolean).join(', ');
+                                                        }
+                                                        if (raw.artist) return raw.artist;
+                                                        if (raw.objectType === 'Playlist') {
+                                                            return raw.owner?.display_name ? `${t('home.by')} ${raw.owner.display_name}` : raw.description || t('home.playlist');
+                                                        }
+                                                        if (raw.objectType === 'Album') return t('home.album');
+                                                        if (raw.objectType === 'Artist') return t('home.artist');
+                                                        if (raw.description) return raw.description;
+                                                        return t('home.track') || 'Track';
+                                                    })()}
                                                 </p>
                                             </div>
+                                            {isSixPack && (
+                                                <div className="play-button" onClick={(e) => handlePlayButtonClick(e, item)}>
+                                                    <svg role="img" height="14" width="14" viewBox="0 0 24 24" fill="currentColor">
+                                                        <path d="M7.05 3.606l13.49 7.788a.7.7 0 010 1.212L7.05 20.394A.7.7 0 016 19.788V4.212a.7.7 0 011.05-.606z"></path>
+                                                    </svg>
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>

@@ -4,13 +4,37 @@
   --bg-primary: #06080c;
   --bg-surface: #0a0c12;
 
-    --bg-mesh: radial-gradient(at 0% 0%, rgba(25, 38, 58, 0.3) 0, transparent 45%),
-    radial-gradient(at 100% 0%, rgba(18, 30, 48, 0.25) 0, transparent 45%),
-    radial-gradient(at 50% 100%, rgba(30, 42, 60, 0.18) 0, transparent 55%);
+  --dynamic-glow-primary: rgba(0, 119, 249, 0.08);
+  --dynamic-glow-secondary: rgba(138, 43, 226, 0.06);
+  --dynamic-accent: #0077f9;
 
-  --glass-bg: rgba(14, 16, 22, 0.5);
-  --glass-border: rgba(255, 255, 255, 0.035);
-  --glass-blur: blur(32px);
+  --bg-mesh: radial-gradient(at 10% 15%, var(--dynamic-glow-primary) 0, transparent 40%),
+    radial-gradient(at 90% 10%, var(--dynamic-glow-secondary) 0, transparent 40%);
+
+  /* ── 3-Tier Glassmorphic Hierarchy ── */
+  /* Tier 1: Base Floating Panels (Sidebar, Main Shell, Queue, Floating Island Player) */
+  --glass-panel-bg: rgba(12, 15, 22, 0.62);
+  --glass-panel-blur: blur(44px);
+  --glass-panel-border: 1px solid rgba(255, 255, 255, 0.075);
+  --glass-panel-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), 0 0 1px rgba(255, 255, 255, 0.12) inset;
+
+  /* Tier 2: Interactive Floating Cards & Sub-surfaces */
+  --glass-card-bg: rgba(255, 255, 255, 0.028);
+  --glass-card-hover-bg: rgba(255, 255, 255, 0.058);
+  --glass-card-border: 1px solid rgba(255, 255, 255, 0.05);
+  --glass-card-hover-border: 1px solid rgba(255, 255, 255, 0.11);
+  --glass-card-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  --glass-card-hover-shadow: 0 16px 36px rgba(0, 0, 0, 0.45), 0 0 1px rgba(255, 255, 255, 0.15) inset;
+
+  /* Tier 3: Modals, Popovers & Floating Menus */
+  --glass-modal-bg: rgba(16, 20, 30, 0.85);
+  --glass-modal-blur: blur(60px);
+  --glass-modal-border: 1px solid rgba(255, 255, 255, 0.12);
+  --glass-modal-shadow: 0 24px 60px rgba(0, 0, 0, 0.65), 0 0 1px rgba(255, 255, 255, 0.2) inset;
+
+  --glass-bg: var(--glass-panel-bg);
+  --glass-border: rgba(255, 255, 255, 0.075);
+  --glass-blur: var(--glass-panel-blur);
 
   --text-main: #f0f0f2;
   --text-main-rgb: 240, 240, 242;
@@ -20,17 +44,17 @@
   --accent-main: #0077f9;
   --accent-rgb: 0, 119, 249;
   --accent-soft: rgba(var(--accent-rgb), 0.15);
-  --accent-glow: 0 0 6px rgba(var(--accent-rgb), 0.15);
-  --accent-glow-strong: 0 0 12px rgba(var(--accent-rgb), 0.2);
+  --accent-glow: 0 0 8px rgba(var(--accent-rgb), 0.25);
+  --accent-glow-strong: 0 0 16px rgba(var(--accent-rgb), 0.35);
 
-  --card-bg: rgba(255, 255, 255, 0.02);
-  --card-hover: rgba(255, 255, 255, 0.045);
-  --card-border: rgba(255, 255, 255, 0.035);
+  --card-bg: var(--glass-card-bg);
+  --card-hover: var(--glass-card-hover-bg);
+  --card-border: rgba(255, 255, 255, 0.05);
 
-  --shadow-luxe: 0 16px 40px rgba(0, 0, 0, 0.35);
+  --shadow-luxe: 0 20px 48px rgba(0, 0, 0, 0.45), 0 0 1px rgba(255, 255, 255, 0.12) inset;
   --hover-bg: rgba(255, 255, 255, 0.06);
 
-    --z-below: -10;
+  --z-below: -10;
   --z-base: 0;
   --z-surface: 10;
   --z-float: 100;
@@ -45,24 +69,26 @@
 }
 
 .glass-panel {
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
+  background: var(--glass-panel-bg);
+  backdrop-filter: var(--glass-panel-blur);
+  -webkit-backdrop-filter: var(--glass-panel-blur);
+  border: var(--glass-panel-border);
+  box-shadow: var(--glass-panel-shadow);
 }
 
 .premium-card {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
-  border-radius: 16px;
-  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  border-radius: 14px;
+  box-shadow: var(--glass-card-shadow);
+  transition: all 0.35s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .premium-card:hover {
   background: var(--card-hover);
-  border-color: rgba(var(--accent-rgb), 0.4);
+  border-color: rgba(var(--accent-rgb), 0.35);
   transform: translateY(-4px) scale(1.01);
-  box-shadow: var(--shadow-luxe);
+  box-shadow: var(--glass-card-hover-shadow);
 }
 
 * {
@@ -80,6 +106,7 @@ body {
   background-color: var(--bg-primary);
   background-image: var(--bg-mesh);
   background-attachment: fixed;
+  background-size: cover;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -87,7 +114,26 @@ body {
   font-family: 'Inter', sans-serif;
   color: var(--text-main);
   -webkit-font-smoothing: antialiased;
+  transition: background-image 1.2s cubic-bezier(0.2, 0, 0.2, 1);
+  position: relative;
 }
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: var(--custom-bg-image, none);
+  background-size: var(--custom-bg-fit, cover);
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: blur(var(--custom-bg-blur, 0px));
+  opacity: var(--custom-bg-opacity, 0);
+  pointer-events: none;
+  z-index: var(--z-below, -10);
+  transform: scale(1.04);
+  transition: opacity 0.4s ease, filter 0.3s ease;
+}
+
 
 #root {
   width: 100%;
@@ -613,3 +659,30 @@ button {
 .download-pulse {
   animation: download-pulse 1.5s ease-in-out infinite;
 }
+
+@keyframes loginContainerFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.main-layout-container {
+  animation: mainAppFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes mainAppFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+

@@ -62,13 +62,14 @@ export class YtDlpAudio {
     }
 
         private static readonly PLAYER_CLIENTS = [
+        'android',
+        'android_creator',
+        'web_creator',
         'mweb,default',
         'web,default',
-        'tv_embedded',
-        'android',
     ];
 
-    private getYouTubeOptions(quality: string | undefined, formatExt: string | undefined, extra: Record<string, any> = {}, playerClient = 'mweb,default'): Record<string, any> {
+    private getYouTubeOptions(quality: string | undefined, formatExt: string | undefined, extra: Record<string, any> = {}, playerClient = 'android'): Record<string, any> {
         
         
         
@@ -197,7 +198,105 @@ export class YtDlpAudio {
         this.isProcessingQueue = false;
     }
 
-        async getStreamUrl(trackName: any, artistName: any, quality?: string, formatExt?: string, signal?: AbortSignal, isPriority = false): Promise<string> {
+        async getStreamUrlByVideoId(videoIdOrUrl: string, quality?: string, formatExt?: string, signal?: AbortSignal, isPriority = false): Promise<string> {
+        formatExt = 'webm';
+        const target = videoIdOrUrl.startsWith('http') ? videoIdOrUrl : `https://www.youtube.com/watch?v=${videoIdOrUrl}`;
+        const cacheKey = `direct::${target}::${quality || 'default'}::${formatExt || 'default'}`;
+
+        const cachedUrl = this.getCachedUrl(cacheKey);
+        if (cachedUrl) {
+            console.log(`[YtDlp] Cache hit for direct URL "${target}" [Quality: ${quality || 'default'}]`);
+            return cachedUrl;
+        }
+
+        console.log(`[YtDlp] Fetching stream for direct target "${target}" at max quality ${quality || 'default'} kbps`);
+
+        try {
+            if (signal?.aborted) throw Object.assign(new Error('AbortError'), { name: 'AbortError' });
+
+            const onDone = await this.waitForRateLimit(isPriority);
+
+            try {
+                if (signal?.aborted) {
+                    throw Object.assign(new Error('AbortError'), { name: 'AbortError' });
+                }
+
+                let lastError: any = null;
+
+                for (const client of YtDlpAudio.PLAYER_CLIENTS) {
+                    if (signal?.aborted) {
+                        throw Object.assign(new Error('AbortError'), { name: 'AbortError' });
+                    }
+
+                    try {
+                        const child = this.ytdlpInstance.exec(target, this.getYouTubeOptions(quality, formatExt, {
+                            getUrl: true,
+                            quiet: true
+                        }, client));
+
+                        if (signal) {
+                            const onAbort = () => {
+                                try { child.cancel(); } catch (e) { }
+                            };
+                            signal.addEventListener('abort', onAbort);
+                            child.finally(() => signal.removeEventListener('abort', onAbort)).catch(() => {});
+                        }
+
+                        const rawOutput = await child;
+                        let url = (typeof rawOutput === 'string' ? rawOutput : (rawOutput as any).stdout || '').trim();
+
+                        if (!url || !url.startsWith('http')) {
+                            throw new Error(`Incomplete URL from yt-dlp: ${url || '[empty]'}`);
+                        }
+
+                        if (!url.includes('c=')) {
+                            url += (url.includes('?') ? '&' : '?') + `c=${client.split(',')[0].toUpperCase()}`;
+                        }
+                        
+                        let ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+                        if (client.includes('android')) {
+                            ua = 'com.google.android.youtube/19.05.36 (Linux; U; Android 11; GMT)';
+                        } else if (client.includes('mweb')) {
+                            ua = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1';
+                        }
+                        url += `&__luniq_ua=${encodeURIComponent(ua)}`;
+                        
+                        this.setCachedUrl(cacheKey, url);
+                        console.log(`[YtDlp] Cached direct stream for "${target}" [${quality || 'default'}] via client="${client}"`);
+
+                        return url;
+
+                    } catch (err: any) {
+                        if (err.isCanceled || signal?.aborted || err.name === 'AbortError') throw err;
+
+                        lastError = err;
+
+                        if (this.isBotDetectionError(err)) {
+                            console.warn(`[YtDlp] Bot detection with client="${client}", trying next...`);
+                            continue; 
+                        }
+
+                        throw err;
+                    }
+                }
+
+                console.error('YtDlpAudio execution error for direct target:', lastError);
+                throw new Error(`Failed to get direct stream URL: ${lastError instanceof Error ? lastError.message : String(lastError)}`);
+            } finally {
+                onDone();
+            }
+        } catch (error: any) {
+            if (error.isCanceled || signal?.aborted || error.name === 'AbortError') {
+                const abortError = new Error('AbortError');
+                abortError.name = 'AbortError';
+                throw abortError;
+            }
+
+            throw error;
+        }
+    }
+
+    async getStreamUrl(trackName: any, artistName: any, quality?: string, formatExt?: string, signal?: AbortSignal, isPriority = false): Promise<string> {
         formatExt = 'webm';
         const tName = typeof trackName === 'string' ? trackName : (trackName?.name || String(trackName || 'unknown'));
         const aName = typeof artistName === 'string' ? artistName : (artistName?.name || String(artistName || 'unknown'));
@@ -260,7 +359,9 @@ export class YtDlpAudio {
                         }
                         
                         let ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-                        if (client.includes('mweb')) {
+                        if (client.includes('android')) {
+                            ua = 'com.google.android.youtube/19.05.36 (Linux; U; Android 11; GMT)';
+                        } else if (client.includes('mweb')) {
                             ua = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1';
                         }
                         url += `&__luniq_ua=${encodeURIComponent(ua)}`;

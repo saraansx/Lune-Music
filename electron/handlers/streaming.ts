@@ -6,6 +6,7 @@ import http from "http";
 import { getDatabase } from "../database.js";
 import { normalizeTrackForDB } from "./database.js";
 import { getAudioEngine, getFallbackEngine, activeSearches, activeDownloads } from "../streaming.js";
+import { audioCacheManager } from "../audioCache.js";
 import { StoreSchema, schema } from "../store.js";
 import Store from "electron-store";
 
@@ -26,7 +27,21 @@ const proxyServer = http.createServer((req, res) => {
   }
 
   const queryParams = new URLSearchParams(reqUrl.slice(queryIndex));
+  const cachedTrackId = queryParams.get('cachedId');
+
+  // Check if serving from local audio cache directly
+  if (cachedTrackId) {
+    const cachedFile = audioCacheManager.get(cachedTrackId);
+    if (cachedFile) {
+      const mime = cachedFile.endsWith('.mp4') ? 'audio/mp4' : 'audio/webm';
+      audioCacheManager.serveLocalFile(cachedFile, req, res, mime);
+      return;
+    }
+  }
+
   const targetUrl = queryParams.get('url');
+  const trackIdToCache = queryParams.get('cacheTrackId') || '';
+
   if (!targetUrl) {
     res.writeHead(400);
     res.end('Missing url');
@@ -34,6 +49,7 @@ const proxyServer = http.createServer((req, res) => {
   }
 
   let resolvedUserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+  let resolvedAuth = '';
   let cleanTargetUrl = targetUrl;
   try {
     const parsed = new URL(targetUrl);
@@ -41,8 +57,13 @@ const proxyServer = http.createServer((req, res) => {
     if (uaParam) {
       resolvedUserAgent = decodeURIComponent(uaParam);
       parsed.searchParams.delete('__luniq_ua');
-      cleanTargetUrl = parsed.toString();
     }
+    const authParam = parsed.searchParams.get('__luniq_auth');
+    if (authParam) {
+      resolvedAuth = decodeURIComponent(authParam);
+      parsed.searchParams.delete('__luniq_auth');
+    }
+    cleanTargetUrl = parsed.toString();
   } catch (e) {}
 
   let start = 0;
@@ -61,6 +82,10 @@ const proxyServer = http.createServer((req, res) => {
     'User-Agent': resolvedUserAgent
   };
 
+  if (resolvedAuth) {
+    headers['Authorization'] = resolvedAuth;
+  }
+
   if (isRangeRequest) {
     if (end !== null) {
       headers['Range'] = `bytes=${start}-${end}`;
@@ -76,7 +101,6 @@ const proxyServer = http.createServer((req, res) => {
     headers,
     signal: controller.signal
   })
-
     .then((targetRes) => {
       if (targetRes.status === 403) {
         console.warn(`[Proxy] 403 Forbidden details:`, {
@@ -87,31 +111,53 @@ const proxyServer = http.createServer((req, res) => {
         });
       }
 
-      res.writeHead(targetRes.status, {
-        'Content-Type': targetRes.headers.get('content-type') || 'audio/webm',
-        'Content-Length': targetRes.headers.get('content-length') || '',
-        'Content-Range': targetRes.headers.get('content-range') || '',
+      const mimeType = targetRes.headers.get('content-type') || 'audio/webm';
+      const resHeaders: Record<string, string> = {
+        'Content-Type': mimeType,
         'Accept-Ranges': 'bytes',
         'Access-Control-Allow-Origin': '*',
-      });
+      };
+
+      const cLength = targetRes.headers.get('content-length');
+      if (cLength) resHeaders['Content-Length'] = cLength;
+
+      const cRange = targetRes.headers.get('content-range');
+      if (cRange) resHeaders['Content-Range'] = cRange;
+
+      res.writeHead(targetRes.status, resHeaders);
+
+      // Progressive cache writer if streaming from the beginning (start === 0)
+      const shouldCache = trackIdToCache && (!isRangeRequest || start === 0);
+      const cacheWriter = shouldCache
+        ? audioCacheManager.startCaching(trackIdToCache, mimeType)
+        : null;
 
       if (targetRes.body) {
         const reader = targetRes.body.getReader();
         const pump = async () => {
           const { done, value } = await reader.read();
           if (done) {
+            cacheWriter?.commit();
             res.end();
             return;
           }
-          res.write(value);
+          if (value) {
+            cacheWriter?.write(value);
+            res.write(value);
+          }
           await pump();
         };
         pump().catch((err) => {
-          if (err.name === 'AbortError' || err.message?.includes('aborted')) return;
+          if (err.name === 'AbortError' || err.message?.includes('aborted')) {
+            cacheWriter?.abort();
+            return;
+          }
           console.error('[Proxy] Stream piping error:', err);
+          cacheWriter?.abort();
           res.end();
         });
       } else {
+        cacheWriter?.abort();
         res.end();
       }
     })
@@ -167,11 +213,13 @@ export function registerStreamingHandlers() {
     options: {
       forceRefresh?: boolean;
       preferFallback?: boolean;
+      trackId?: string;
     } = {},
   ): Promise<string> => {
     const {
       forceRefresh = false,
       preferFallback = false,
+      trackId = '',
     } = options;
 
     const engines = preferFallback
@@ -214,7 +262,8 @@ export function registerStreamingHandlers() {
         const engineName = engine.constructor.name.replace('Audio', '').toLowerCase();
         console.log(`[Audio Engine] Resolved "${trackName}" via ${engineName} (${client}) in ${Math.round(performance.now() - startTime)}ms`);
 
-        const localUrl = `http://127.0.0.1:${proxyPort}/stream?url=${encodeURIComponent(url)}`;
+        const cacheParam = trackId ? `&cacheTrackId=${encodeURIComponent(trackId)}` : '';
+        const localUrl = `http://127.0.0.1:${proxyPort}/stream?url=${encodeURIComponent(url)}${cacheParam}`;
         return localUrl;
       } catch (error: any) {
         if (error.name === "AbortError" || signal.aborted) {
@@ -286,15 +335,27 @@ export function registerStreamingHandlers() {
       preferFallback: boolean = false,
     ) => {
       try {
-        if (trackId && trackId !== "unknown" && db) {
-          const local = db
-            .prepare("SELECT localPath FROM downloads WHERE id = ?")
-            .get(trackId);
-          if (local && local.localPath) {
-            try {
-              await fs.promises.access(local.localPath);
-              return `luniq-local://f/${Buffer.from(local.localPath).toString("hex")}`;
-            } catch (e) {}
+        if (trackId && trackId !== "unknown") {
+          // 1. Check offline permanent downloads in DB
+          if (db) {
+            const local = db
+              .prepare("SELECT localPath FROM downloads WHERE id = ?")
+              .get(trackId);
+            if (local && local.localPath) {
+              try {
+                await fs.promises.access(local.localPath);
+                return `luniq-local://f/${Buffer.from(local.localPath).toString("hex")}`;
+              } catch (e) {}
+            }
+          }
+
+          // 2. Check instant replay cache unless forced refresh
+          if (!forceRefresh) {
+            const cachedFilePath = audioCacheManager.get(trackId);
+            if (cachedFilePath) {
+              console.log(`[AudioCache] ⚡ Instant Replay cache hit for "${trackName}" (ID: ${trackId})`);
+              return `http://127.0.0.1:${proxyPort}/stream?cachedId=${encodeURIComponent(trackId)}`;
+            }
           }
         }
 
@@ -331,7 +392,7 @@ export function registerStreamingHandlers() {
             controller.signal,
             isPriority,
             durationMs,
-            { forceRefresh, preferFallback },
+            { forceRefresh, preferFallback, trackId },
           );
           search = { controller, promise, requesters: new Set() };
           activeSearches.set(trackId, search);
@@ -442,6 +503,7 @@ export function registerStreamingHandlers() {
 
     try {
       await getAudioEngine().clearCache();
+      await audioCacheManager.clear();
       activeSearches.forEach((val) => val.controller.abort());
       activeSearches.clear();
 

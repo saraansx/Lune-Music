@@ -29,15 +29,24 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  transform: translateY(100%);
+  perspective: 1200px;
+  transform: perspective(1200px) rotateX(-8deg) scale(0.2, 0.1) translateY(80px) skewX(-2deg);
+  transform-origin: 86% calc(100% - 10px);
+  clip-path: polygon(35% 100%, 65% 100%, 75% 100%, 25% 100%);
   opacity: 0;
+  filter: blur(8px) brightness(0.7);
   transition:
-    transform 0.6s cubic-bezier(0.23, 1, 0.32, 1),
-    opacity 0.4s ease;
+    transform 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+    clip-path 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.4s cubic-bezier(0.2, 0, 0, 1),
+    filter 0.45s ease,
+    visibility 0.55s ease;
   pointer-events: all;
   visibility: hidden;
   overflow: hidden;
   -webkit-app-region: no-drag;
+  will-change: transform, clip-path, opacity, filter;
+  backface-visibility: hidden;
 }
 
 .fullscreen-content {
@@ -52,17 +61,14 @@
 
 .fullscreen-main-layout {
   display: grid;
-  grid-template-columns: 0.95fr 1.05fr;
+  grid-template-columns: 1fr 1fr;
   gap: 48px;
   align-items: center;
-  padding: 0 6% 0 5%;
+  padding: 0 4% 0 4%;
   width: 100%;
   flex: 1;
   min-height: 0;
 }
-
-
-
 
 .np-details-column {
   display: flex;
@@ -83,8 +89,10 @@
 }
 
 .now-playing-panel.fullscreen.open {
-  transform: translateY(0);
+  transform: perspective(1200px) rotateX(0deg) scale(1, 1) translateY(0) skewX(0deg);
+  clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%);
   opacity: 1;
+  filter: blur(0px) brightness(1);
   pointer-events: all;
   visibility: visible;
 }
@@ -261,35 +269,35 @@
 .fullscreen .np-visual-container {
   width: 100%;
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
   align-items: center;
   perspective: 1000px;
 }
 
 .fullscreen .np-track-image,
 .fullscreen .np-track-video {
-  width: auto;
-  max-width: 100%;
+  width: 100%;
+  max-width: 540px;
   height: auto;
-  max-height: 66vh;
-  border-radius: 28px;
+  max-height: 72vh;
+  border-radius: 32px;
   box-shadow:
     0 40px 100px rgba(0, 0, 0, 0.8),
     0 0 80px rgba(0, 0, 0, 0.4);
   object-fit: contain;
   transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
   display: block;
-  margin: 0;
+  margin: 0 auto;
 }
 
 .fullscreen .np-track-video {
   aspect-ratio: 9/16;
-  max-height: 70vh;
+  max-height: 75vh;
 }
 
 .fullscreen .np-track-image {
   aspect-ratio: 1/1;
-  max-width: 480px;
+  max-width: 540px;
 }
 
 .fullscreen .np-track-info {

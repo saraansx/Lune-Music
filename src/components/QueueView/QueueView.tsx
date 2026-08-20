@@ -11,7 +11,14 @@ import { ALBUM_PLACEHOLDER } from '../../constants/assets';
 import { useLanguage } from '../../context/LanguageContext';
 import { formatDuration } from '../../utils/format';
 
-const QueueView: React.FC<{ onClose: () => void; onArtistSelect?: (id: string | null, name: string) => void }> = ({ 
+interface QueueViewProps {
+    isOpen?: boolean;
+    onClose: () => void;
+    onArtistSelect?: (id: string | null, name: string) => void;
+}
+
+const QueueView: React.FC<QueueViewProps> = ({ 
+    isOpen = true,
     onClose, 
     onArtistSelect
 }) => {
@@ -68,15 +75,16 @@ const QueueView: React.FC<{ onClose: () => void; onArtistSelect?: (id: string | 
     const handleClose = () => {
         setIsClosing(true);
         setTimeout(() => {
+            setIsClosing(false);
             onClose();
-        }, 300); 
+        }, 350); 
     };
 
 
 
 
     return (
-        <div className={`queue-panel ${isClosing ? 'closing' : ''}`}>
+        <div className={`queue-panel ${isOpen ? 'open' : ''} ${isClosing ? 'closing' : ''}`}>
             <div className="queue-header">
                 <div className="queue-tabs">
                     <button 
