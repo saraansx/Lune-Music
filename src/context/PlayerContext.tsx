@@ -462,15 +462,22 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         const formattedContext = playlistTracks.map(formatTrackForPlayer);
         setContextTracks(formattedContext);
 
-        const currentIndex = playlistTracks.findIndex(
-          (t) => normalizeTrack(t, lowDataMode).id === formattedTrack.id,
-        );
-        const remainingTracks = playlistTracks
-          .slice(currentIndex + 1)
+        const currentIndex = playlistTracks.findIndex((t: any) => {
+          const norm = normalizeTrack(t, lowDataMode);
+          return norm.id === formattedTrack.id || (t.id && t.id === formattedTrack.id) || (t.uri && t.uri === (track?.uri || (formattedTrack as any)?.uri));
+        });
+
+        const rawRemaining = currentIndex >= 0 
+          ? playlistTracks.slice(currentIndex + 1)
+          : playlistTracks.filter(t => normalizeTrack(t, lowDataMode).id !== formattedTrack.id);
+
+        const remainingTracks = rawRemaining
           .map((t) => ({
             ...formatTrackForPlayer(t),
             queueId: `id-${Date.now()}-${Math.random()}`,
-          }));
+          }))
+          .filter(t => t && t.id);
+
         setQueue(remainingTracks);
 
         if (isShuffle) {

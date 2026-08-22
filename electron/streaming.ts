@@ -17,40 +17,25 @@ export const lavalinkAudio = new LavalinkAudio({
     password: store.get('lavalinkPassword') || 'youshallnotpass',
     secure: store.get('lavalinkSecure') || false,
 });
+lavalinkAudio.setYtDlpEngine(ytdlpAudio);
 
 let lastLoggedEngine: string | null = null;
 
 export function getAudioEngine(): YoutubeiAudio | YtDlpAudio | LavalinkAudio {
-    const isSpotifyLoggedIn = !!store.get('spotify_access_token');
-    
-    // In Guest Mode (no Spotify login): Lavalink is the default engine
-    if (!isSpotifyLoggedIn) {
-        if (lastLoggedEngine !== 'lavalink (guest)') {
-            console.log('[Audio Engine] Guest mode active: Using Lavalink (with yt-dlp fallback)');
-            lastLoggedEngine = 'lavalink (guest)';
-        }
-        return lavalinkAudio;
-    }
-
-    // In Spotify Login Mode: Use user-chosen / high-speed engine (default youtubei)
     const engine = store.get('audioEngine') || 'youtubei';
     if (engine !== lastLoggedEngine) {
-        console.log(`[Audio Engine] Spotify logged-in mode active: ${engine}`);
+        console.log(`[Audio Engine] Active engine: ${engine}`);
         lastLoggedEngine = engine;
     }
     if (engine === 'lavalink') return lavalinkAudio;
-    return engine === 'youtubei' ? youtubeiAudio : ytdlpAudio;
+    if (engine === 'ytdlp') return ytdlpAudio;
+    return youtubeiAudio;
 }
 
 export function getFallbackEngine(): YoutubeiAudio | YtDlpAudio | LavalinkAudio {
-    const isSpotifyLoggedIn = !!store.get('spotify_access_token');
-    if (!isSpotifyLoggedIn) {
-        // Fallback for guest mode if Lavalink is down: yt-dlp
-        return ytdlpAudio;
-    }
     const engine = store.get('audioEngine') || 'youtubei';
-    if (engine === 'lavalink') return ytdlpAudio;
-    return engine === 'ytdlp' ? youtubeiAudio : ytdlpAudio;
+    if (engine === 'youtubei') return ytdlpAudio;
+    return youtubeiAudio;
 }
 
 export const activeSearches = new Map<string, { 

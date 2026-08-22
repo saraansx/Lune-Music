@@ -343,7 +343,6 @@ const Playback: React.FC<PlaybackProps> = ({ accessToken }) => {
                                 { value: 'dts3d', label: 'DTS:X 3D Headphone' },
                                 { value: 'surround71', label: '7.1 Cinema Surround Sound' },
                                 { value: 'audiophile', label: 'Audiophile Hi-Fi Reference' },
-                                { value: 'concert', label: 'Concert Arena Hall' },
                                 { value: 'studio', label: 'Mastering Studio' },
                                 { value: 'club', label: 'Club Deep Bass' }
                             ]}
@@ -356,9 +355,7 @@ const Playback: React.FC<PlaybackProps> = ({ accessToken }) => {
                             subLabel={t('playback.roomSizeSub') || 'Scale the physical acoustic dimension of the virtual room.'}
                             options={[
                                 { value: 'small', label: 'Intimate Studio Room' },
-                                { value: 'medium', label: 'Acoustic Living Room' },
-                                { value: 'large', label: 'Cinema Theatre Space' },
-                                { value: 'arena', label: 'Stadium Arena' }
+                                { value: 'medium', label: 'Acoustic Living Room' }
                             ]}
                             value={spatialRoomSize}
                             onChange={(val) => setSpatialRoomSize(val as any)}

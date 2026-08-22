@@ -54,4 +54,5 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
     ipcRenderer.removeAllListeners(channel);
     listenerMap.delete(channel);
   },
+  platform: process.platform,
 })

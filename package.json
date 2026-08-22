@@ -10,6 +10,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && electron-builder",
+    "build:win": "tsc && vite build && electron-builder --win",
+    "build:mac": "tsc && vite build && electron-builder --mac",
+    "build:mac:arm64": "tsc && vite build && electron-builder --mac --arm64",
+    "build:mac:universal": "tsc && vite build && electron-builder --mac --universal",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "postinstall": "node scripts/verify-yt-dlp.mjs && electron-builder install-app-deps"

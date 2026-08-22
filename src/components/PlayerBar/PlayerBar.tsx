@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import { LuniqSpatialEngine } from '../../services/audio/LuniqSpatialEngine';
-import { extractPaletteFromImage, applyPaletteToDOM } from '../../services/audio/LuniqColorExtractor';
 import "./PlayerBar.css";
 import LoopButton from "../Loop/LoopButton";
 import ShuffleButton from "../Shuffle/ShuffleButton";
@@ -95,155 +94,134 @@ const PlayerBar: React.FC<{
   const rpcSyncIntervalRef = useRef<number | null>(null);
   const isCrossfadingRef = useRef<boolean>(false);
 
-  useEffect(() => {
-    if (!audioRef.current) return;
-
-    const cleanupInterval = () => {
-      if (normalizationIntervalRef.current) {
-        console.log("[Normalization] Clearing interval.");
-        clearInterval(normalizationIntervalRef.current);
-        normalizationIntervalRef.current = null;
-      }
-    };
-
-    if (!normalizeVolume && !monoAudio && !eqEnabled && !spatialAudioEnabled) {
-      cleanupInterval();
-      if (audioCtxRef.current && audioCtxRef.current.state !== 'closed' && sourceRef.current) {
-        console.log(
-          "[Audio] Normalization, Mono, EQ & Spatial OFF: Bypassing Audio Graph to save CPU",
-        );
-        try { sourceRef.current.disconnect(); } catch (_) {}
-        try { sourceRef.current.connect(audioCtxRef.current.destination); } catch (_) {}
-
-        if (gainNodeRef.current) {
-          try {
-            gainNodeRef.current.gain.setTargetAtTime(
-              1.0,
-              audioCtxRef.current.currentTime,
-              0.2,
-            );
-          } catch (_) {}
-        }
-      }
-      return;
-    }
-
-    if (!audioCtxRef.current) {
-      try {
-        console.log("[Audio] Initializing Web Audio API nodes...");
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        audioCtxRef.current = new AudioCtx();
-        
-        if (audioDeviceId && audioDeviceId !== "default" && (audioCtxRef.current as any).setSinkId) {
-          (audioCtxRef.current as any).setSinkId(audioDeviceId).catch((err: any) => {
-            console.warn("[Audio] Could not set AudioContext output device (fallback to default):", err);
-          });
-        }
-
-        if (!sourceRef.current && audioRef.current) {
-          try {
-            sourceRef.current = audioCtxRef.current.createMediaElementSource(audioRef.current);
-          } catch (sourceErr: any) {
-            console.warn("[Audio] createMediaElementSource already created or deferred:", sourceErr?.message || sourceErr);
-          }
-        }
-
-        gainNodeRef.current = audioCtxRef.current.createGain();
-        analyzerRef.current = audioCtxRef.current.createAnalyser();
-        spatialEngineRef.current = new LuniqSpatialEngine(audioCtxRef.current);
-
-        analyzerRef.current.fftSize = 256;
-
-        const freqs = [60, 230, 910, 3600, 14000];
-        eqBandsRef.current = freqs.map((freq, i) => {
-          const filter = audioCtxRef.current!.createBiquadFilter();
-
-          if (i === 0) filter.type = "lowshelf";
-          else if (i === 4) filter.type = "highshelf";
-          else filter.type = "peaking";
-
-          filter.frequency.value = freq;
-          
-          filter.Q.value = filter.type === "peaking" ? 0.7 : 1.0;
-          return filter;
-        });
-
-        console.log("[Audio] Web Audio API graph created successfully.");
-      } catch (err: any) {
-        console.warn("[Audio] Safe Web Audio initialization notice:", err?.message || err);
-        return;
-      }
-    }
-
-    const audioCtx = audioCtxRef.current;
-    const source = sourceRef.current;
-    const gainNode = gainNodeRef.current;
-    const analyzer = analyzerRef.current;
-    const spatialEngine = spatialEngineRef.current;
-
-    if (!audioCtx || audioCtx.state === 'closed' || !source || !gainNode) return;
+  // 1. Initialize persistent Web Audio API graph once
+  const initAudioGraph = React.useCallback(() => {
+    if (!audioRef.current || audioCtxRef.current) return;
 
     try {
-      try { source.disconnect(); } catch (_) {}
-      try { gainNode.disconnect(); } catch (_) {}
-      eqBandsRef.current.forEach((filter) => {
-        try { filter.disconnect(); } catch (_) {}
+      console.log("[Audio] Initializing persistent Web Audio API graph...");
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      const audioCtx = (window as any).__luniqAudioCtx || new AudioCtx();
+      (window as any).__luniqAudioCtx = audioCtx;
+      audioCtxRef.current = audioCtx;
+
+      if (audioDeviceId && audioDeviceId !== "default" && (audioCtx as any).setSinkId) {
+        (audioCtx as any).setSinkId(audioDeviceId).catch((err: any) => {
+          console.warn("[Audio] Could not set AudioContext output device (fallback to default):", err);
+        });
+      }
+
+      let source = (audioRef.current as any).__mediaSourceNode;
+      if (!source) {
+        source = audioCtx.createMediaElementSource(audioRef.current);
+        (audioRef.current as any).__mediaSourceNode = source;
+      }
+      sourceRef.current = source;
+
+      const gainNode = audioCtx.createGain();
+      gainNodeRef.current = gainNode;
+
+      const analyzer = audioCtx.createAnalyser();
+      analyzer.fftSize = 256;
+      analyzerRef.current = analyzer;
+
+      const spatialEngine = new LuniqSpatialEngine(audioCtx);
+      spatialEngineRef.current = spatialEngine;
+
+      const freqs = [60, 230, 910, 3600, 14000];
+      const eqFilters = freqs.map((freq, i) => {
+        const filter = audioCtx.createBiquadFilter();
+        if (i === 0) {
+          filter.type = "lowshelf";
+          filter.Q.value = 0.707;
+        } else if (i === 4) {
+          filter.type = "highshelf";
+          filter.Q.value = 0.707;
+        } else {
+          filter.type = "peaking";
+          filter.Q.value = i === 1 ? 0.85 : i === 2 ? 0.90 : 0.95;
+        }
+        filter.frequency.value = freq;
+        filter.gain.value = eqEnabled ? (eqBands[i] || 0) : 0;
+        return filter;
       });
-      if (spatialEngine) {
-        try { spatialEngine.outputNode.disconnect(); } catch (_) {}
-      }
+      eqBandsRef.current = eqFilters;
 
-      // Graph Construction:
-      // source -> [EQ Bands (if enabled)] -> [Spatial Engine (if enabled)] -> gainNode -> destination
-      let currentNode: AudioNode = source;
+      // Construct permanent static signal chain:
+      // source -> eqFilters[0..4] -> spatialEngine -> gainNode -> destination
+      let current: AudioNode = source;
+      eqFilters.forEach((filter) => {
+        current.connect(filter);
+        current = filter;
+      });
 
-      if (eqEnabled && eqBandsRef.current.length === 5) {
-        eqBandsRef.current.forEach((filter) => {
-          currentNode.connect(filter);
-          currentNode = filter;
-        });
-      }
-
-      if (spatialAudioEnabled && spatialEngine) {
-        spatialEngine.applyConfig({
-          enabled: spatialAudioEnabled,
-          mode: spatialAudioMode,
-          bassBoost: spatialBassBoost,
-          vocalClarity: spatialVocalClarity,
-          tubeWarmth: spatialTubeWarmth,
-          crossfeed: true,
-          spatialWidth: spatialWidth || 1.4,
-          roomSize: spatialRoomSize || 'medium',
-          reverbMix: 1.0,
-        });
-        currentNode.connect(spatialEngine.inputNode);
-        currentNode = spatialEngine.outputNode;
-      }
-
-      currentNode.connect(gainNode);
+      current.connect(spatialEngine.inputNode);
+      spatialEngine.outputNode.connect(gainNode);
       gainNode.connect(audioCtx.destination);
 
-      if (normalizeVolume && analyzer) {
-        try { source.connect(analyzer); } catch (_) {}
-      }
+      try { source.connect(analyzer); } catch (_) {}
+
+      // Initial DSP configuration
+      spatialEngine.applyConfig({
+        enabled: spatialAudioEnabled,
+        mode: spatialAudioMode,
+        bassBoost: spatialBassBoost,
+        vocalClarity: spatialVocalClarity,
+        tubeWarmth: spatialTubeWarmth,
+        crossfeed: true,
+        spatialWidth: spatialWidth || 1.4,
+        roomSize: spatialRoomSize || 'medium',
+        reverbMix: 1.0,
+      });
 
       if (monoAudio) {
         gainNode.channelCount = 1;
         gainNode.channelCountMode = "explicit";
-      } else {
-        gainNode.channelCount = 2;
-        gainNode.channelCountMode = "max";
       }
 
-      if (audioCtx.state === "suspended") {
-        audioCtx
-          .resume()
-          .catch((err) => console.warn("[Audio] Resume failed:", err));
-      }
-    } catch (graphErr) {
-      console.warn("[Audio] Graph connection warning:", graphErr);
+      console.log("[Audio] Persistent Web Audio graph successfully constructed.");
+    } catch (err: any) {
+      console.warn("[Audio] Web Audio initialization notice:", err?.message || err);
     }
-  }, [normalizeVolume, monoAudio, eqEnabled, spatialAudioEnabled, spatialAudioMode, spatialWidth, spatialRoomSize, spatialBassBoost, spatialVocalClarity, spatialTubeWarmth]); 
+  }, [audioDeviceId]);
+
+  // Mount Audio Graph on start
+  useEffect(() => {
+    initAudioGraph();
+  }, [initAudioGraph]);
+
+  // Dynamic DSP Parameter Automation (Glitchless transition in/out of 3D spatial mode)
+  useEffect(() => {
+    if (spatialEngineRef.current && audioCtxRef.current) {
+      if (audioCtxRef.current.state === "suspended") {
+        audioCtxRef.current.resume().catch(() => {});
+      }
+      spatialEngineRef.current.applyConfig({
+        enabled: spatialAudioEnabled,
+        mode: spatialAudioMode,
+        bassBoost: spatialBassBoost,
+        vocalClarity: spatialVocalClarity,
+        tubeWarmth: spatialTubeWarmth,
+        crossfeed: true,
+        spatialWidth: spatialWidth || 1.4,
+        roomSize: spatialRoomSize || 'medium',
+        reverbMix: 1.0,
+      });
+    }
+  }, [spatialAudioEnabled, spatialAudioMode, spatialWidth, spatialRoomSize, spatialBassBoost, spatialVocalClarity, spatialTubeWarmth]);
+
+  // Mono/Stereo audio toggle
+  useEffect(() => {
+    if (gainNodeRef.current) {
+      if (monoAudio) {
+        gainNodeRef.current.channelCount = 1;
+        gainNodeRef.current.channelCountMode = "explicit";
+      } else {
+        gainNodeRef.current.channelCount = 2;
+        gainNodeRef.current.channelCountMode = "max";
+      }
+    }
+  }, [monoAudio]); 
 
   
   useEffect(() => {
@@ -614,17 +592,6 @@ const PlayerBar: React.FC<{
       audioRef.current.volume = isMuted ? 0 : volume;
     }
   }, [volume, isMuted]);
-
-  // Dynamic Adaptive Color Mesh Palette Update
-  useEffect(() => {
-    if (currentTrack && currentTrack.albumArt) {
-      extractPaletteFromImage(currentTrack.albumArt).then((palette) => {
-        applyPaletteToDOM(palette);
-      }).catch((err) => {
-        console.warn('[PlayerBar] Palette extraction failed:', err);
-      });
-    }
-  }, [currentTrack?.id, currentTrack?.albumArt]);
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -1484,6 +1451,16 @@ const PlayerBar: React.FC<{
             if (currentTime > 0) {
               audioRef.current.currentTime = currentTime;
             }
+          }
+        }}
+        onCanPlay={() => {
+          if (isPlaying && audioRef.current && audioRef.current.paused) {
+            if (audioCtxRef.current?.state === "suspended") {
+              audioCtxRef.current.resume().catch(() => {});
+            }
+            audioRef.current.play().catch((err) => {
+              console.warn("[PlayerBar] onCanPlay resume error:", err);
+            });
           }
         }}
       />

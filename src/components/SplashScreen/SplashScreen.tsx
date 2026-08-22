@@ -27,7 +27,6 @@ const SplashScreen = ({ onFinished, duration = 1800 }: SplashScreenProps) => {
 
     return (
         <div className={`splash-screen ${fadeOut ? 'fade-out' : ''}`}>
-            <div className="splash-glow-backdrop" />
             <div className="splash-logo-container">
                 <div className="splash-logo-wrapper">
                     <img 

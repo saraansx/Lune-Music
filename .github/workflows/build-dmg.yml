@@ -1,0 +1,40 @@
+name: Build & Release DMG (macOS)
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - main
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build macOS DMG & ZIP Packages
+        run: npm run build:mac
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload DMG Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg-builds
+          path: |
+            release/*/*.dmg
+            release/*/*.zip
+          if-no-files-found: error

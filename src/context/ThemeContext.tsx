@@ -153,6 +153,8 @@ const extractPaletteFromImage = (imageUrl: string): Promise<ExtractedPalette> =>
     img.src = imageUrl;
   });
 
+const hex = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
+
 let _rafId: number | null = null;
 
 const animateToPalette = (
@@ -164,7 +166,6 @@ const animateToPalette = (
   if (_rafId !== null) cancelAnimationFrame(_rafId);
   const start = performance.now();
   const root = document.documentElement;
-  const hex = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
 
   const tick = (now: number) => {
     const raw = Math.min((now - start) / durationMs, 1);
@@ -184,6 +185,9 @@ const animateToPalette = (
     root.style.setProperty('--accent', hexColor);
     root.style.setProperty('--accent-main', hexColor);
     root.style.setProperty('--accent-rgb', `${Math.round(p[0])}, ${Math.round(p[1])}, ${Math.round(p[2])}`);
+    root.style.setProperty('--dynamic-accent', hexColor);
+    root.style.setProperty('--dynamic-glow-primary', `rgba(${Math.round(p[0])}, ${Math.round(p[1])}, ${Math.round(p[2])}, 0.25)`);
+    root.style.setProperty('--dynamic-glow-secondary', `rgba(${Math.round(s[0])}, ${Math.round(s[1])}, ${Math.round(s[2])}, 0.18)`);
 
     if (ambientGlowEnabled) {
       const mesh = `
@@ -191,6 +195,8 @@ const animateToPalette = (
         radial-gradient(at 100% 0%, rgba(${Math.round(s[0])}, ${Math.round(s[1])}, ${Math.round(s[2])}, 0.32) 0, transparent 50%),
         radial-gradient(at 50% 100%,rgba(${Math.round(tr[0])}, ${Math.round(tr[1])}, ${Math.round(tr[2])}, 0.28) 0, transparent 60%)`;
       root.style.setProperty('--bg-mesh', mesh);
+    } else {
+      root.style.setProperty('--bg-mesh', 'none');
     }
 
     if (raw < 1) {
@@ -352,12 +358,35 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     }
 
-    if (dynamicColor && isInApp) return;
-    const theme = isInApp ? ACCENT_COLORS[accentColor] : ACCENT_COLORS['blue'];
     const root = document.documentElement;
+
+    if (dynamicColor && isInApp) {
+      const p = currentPaletteRef.current;
+      const hexColor = `#${hex(p.primary[0])}${hex(p.primary[1])}${hex(p.primary[2])}`;
+      root.style.setProperty('--accent', hexColor);
+      root.style.setProperty('--accent-main', hexColor);
+      root.style.setProperty('--accent-rgb', `${Math.round(p.primary[0])}, ${Math.round(p.primary[1])}, ${Math.round(p.primary[2])}`);
+      root.style.setProperty('--dynamic-accent', hexColor);
+      root.style.setProperty('--dynamic-glow-primary', `rgba(${Math.round(p.primary[0])}, ${Math.round(p.primary[1])}, ${Math.round(p.primary[2])}, 0.25)`);
+      root.style.setProperty('--dynamic-glow-secondary', `rgba(${Math.round(p.secondary[0])}, ${Math.round(p.secondary[1])}, ${Math.round(p.secondary[2])}, 0.18)`);
+
+      if (ambientGlow) {
+        root.style.setProperty('--bg-mesh', `
+          radial-gradient(at 0% 0%,   rgba(${Math.round(p.primary[0])}, ${Math.round(p.primary[1])}, ${Math.round(p.primary[2])}, 0.38) 0, transparent 55%),
+          radial-gradient(at 100% 0%, rgba(${Math.round(p.secondary[0])}, ${Math.round(p.secondary[1])}, ${Math.round(p.secondary[2])}, 0.32) 0, transparent 50%),
+          radial-gradient(at 50% 100%,rgba(${Math.round(p.tertiary[0])}, ${Math.round(p.tertiary[1])}, ${Math.round(p.tertiary[2])}, 0.28) 0, transparent 60%)`);
+      } else {
+        root.style.setProperty('--bg-mesh', 'none');
+      }
+      root.setAttribute('data-density', layoutDensity);
+      return;
+    }
+
+    const theme = isInApp ? ACCENT_COLORS[accentColor] : ACCENT_COLORS['blue'];
     root.style.setProperty('--accent', theme.hex);
     root.style.setProperty('--accent-main', theme.hex);
     root.style.setProperty('--accent-rgb', theme.rgb);
+    root.style.setProperty('--dynamic-accent', theme.hex);
 
     if (ambientGlow) {
       root.style.setProperty('--bg-mesh', `
@@ -443,16 +472,24 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!v) {
       root.style.setProperty('--bg-mesh', 'none');
     } else {
-      const p = currentPaletteRef.current;
-      root.style.setProperty('--bg-mesh', `
-        radial-gradient(at 0% 0%,   rgba(${p.primary[0]}, ${p.primary[1]}, ${p.primary[2]}, 0.38) 0, transparent 55%),
-        radial-gradient(at 100% 0%, rgba(${p.secondary[0]}, ${p.secondary[1]}, ${p.secondary[2]}, 0.32) 0, transparent 50%),
-        radial-gradient(at 50% 100%,rgba(${p.tertiary[0]}, ${p.tertiary[1]}, ${p.tertiary[2]}, 0.28) 0, transparent 60%)`);
+      if (dynamicColor && isInApp) {
+        const p = currentPaletteRef.current;
+        root.style.setProperty('--bg-mesh', `
+          radial-gradient(at 0% 0%,   rgba(${p.primary[0]}, ${p.primary[1]}, ${p.primary[2]}, 0.38) 0, transparent 55%),
+          radial-gradient(at 100% 0%, rgba(${p.secondary[0]}, ${p.secondary[1]}, ${p.secondary[2]}, 0.32) 0, transparent 50%),
+          radial-gradient(at 50% 100%,rgba(${p.tertiary[0]}, ${p.tertiary[1]}, ${p.tertiary[2]}, 0.28) 0, transparent 60%)`);
+      } else {
+        const theme = ACCENT_COLORS[accentColor];
+        root.style.setProperty('--bg-mesh', `
+          radial-gradient(at 0% 0%,   rgba(${theme.mesh1}, 0.45) 0, transparent 55%),
+          radial-gradient(at 100% 0%, rgba(${theme.mesh2}, 0.40) 0, transparent 50%),
+          radial-gradient(at 50% 100%,rgba(${theme.mesh3}, 0.35) 0, transparent 60%)`);
+      }
     }
   };
 
   const applyDynamicColor = async (imageUrl: string) => {
-    if (!imageUrl || !isInApp) return;
+    if (!imageUrl) return;
     try {
       const newPalette = await extractPaletteFromImage(imageUrl);
       animateToPalette(currentPaletteRef.current, newPalette, ambientGlow);

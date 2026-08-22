@@ -12,6 +12,17 @@ import Store from "electron-store";
 
 let proxyPort = 0;
 const proxyServer = http.createServer((req, res) => {
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+      'Access-Control-Allow-Headers': '*',
+      'Access-Control-Max-Age': '86400',
+    });
+    res.end();
+    return;
+  }
+
   const reqUrl = req.url || '';
   if (!reqUrl.startsWith('/stream')) {
     res.writeHead(404);
@@ -126,8 +137,9 @@ const proxyServer = http.createServer((req, res) => {
 
       res.writeHead(targetRes.status, resHeaders);
 
-      // Progressive cache writer if streaming from the beginning (start === 0)
-      const shouldCache = trackIdToCache && (!isRangeRequest || start === 0);
+      // Progressive cache writer if streaming from the beginning (start === 0) and response is valid audio
+      const isValidAudioResponse = (targetRes.status === 200 || targetRes.status === 206) && !mimeType.includes('text/html') && !mimeType.includes('application/json');
+      const shouldCache = isValidAudioResponse && trackIdToCache && (!isRangeRequest || start === 0);
       const cacheWriter = shouldCache
         ? audioCacheManager.startCaching(trackIdToCache, mimeType)
         : null;
@@ -476,6 +488,10 @@ export function registerStreamingHandlers() {
           audioQuality,
           "webm",
         );
+
+        if (trackId && trackId !== "unknown") {
+          audioCacheManager.remove(trackId);
+        }
 
         const search = activeSearches.get(trackId);
         if (search) {

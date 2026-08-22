@@ -44,6 +44,7 @@ const MAX_CACHE_SIZE = 300;
 export class LavalinkAudio {
   private config: LavalinkNodeConfig;
   private urlCache = new Map<string, CacheEntry>();
+  private ytDlpEngine: any = null;
 
   constructor(config?: Partial<LavalinkNodeConfig>) {
     this.config = {
@@ -52,6 +53,10 @@ export class LavalinkAudio {
       password: config?.password || "aeronova",
       secure: config?.secure ?? false,
     };
+  }
+
+  public setYtDlpEngine(engine: any) {
+    this.ytDlpEngine = engine;
   }
 
   public updateConfig(newConfig: Partial<LavalinkNodeConfig>) {
@@ -328,12 +333,8 @@ export class LavalinkAudio {
       }
 
       if (bestTrack.info.identifier) {
-        const directYtUrl = `https://www.youtube.com/watch?v=${bestTrack.info.identifier}`;
-        
         try {
-          const YtDlpClass = (await import('./yt-dlp-audio.js')).YtDlpAudio;
-          const ytEngine = new YtDlpClass();
-          // Resolve directly using the selected bestTrack identifier
+          const ytEngine = this.ytDlpEngine || (new (await import('./yt-dlp-audio.js')).YtDlpAudio());
           const ytStreamUrl = await ytEngine.getStreamUrlByVideoId(
             bestTrack.info.identifier,
             quality,
@@ -341,7 +342,7 @@ export class LavalinkAudio {
             signal,
             _isPriority,
           );
-          if (ytStreamUrl) {
+          if (ytStreamUrl && ytStreamUrl.startsWith('http') && !ytStreamUrl.includes('youtube.com/watch')) {
             this.setCachedUrl(cacheKey, ytStreamUrl);
             console.log(`[Lavalink] Successfully resolved "${tName}" by ${aName} -> "${bestTrack.info.title}" [Author: ${bestTrack.info.author}, Score: ${highestScore}] via yt-dlp direct target`);
             return ytStreamUrl;
@@ -350,9 +351,7 @@ export class LavalinkAudio {
           console.warn(`[Lavalink] yt-dlp direct target resolution warning:`, ytErr);
         }
 
-        this.setCachedUrl(cacheKey, directYtUrl);
-        console.log(`[Lavalink] Successfully resolved "${tName}" by ${aName} -> "${bestTrack.info.title}" [Author: ${bestTrack.info.author}, Score: ${highestScore}]`);
-        return directYtUrl;
+        throw new Error(`Lavalink track "${bestTrack.info.title}" requires direct stream resolution`);
       }
     }
 

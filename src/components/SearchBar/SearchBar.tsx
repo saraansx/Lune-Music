@@ -234,7 +234,7 @@ const SearchBar = ({
                 durationMs: item.duration_ms || item.duration?.totalMilliseconds || 0,
                 albumArt: item.images?.[0]?.url || item.album?.images?.[0]?.url || ''
             }, lowDataMode);
-            onTrackPlaySelect(trackToPlay, []); 
+            onTrackPlaySelect(trackToPlay, results?.tracks || []); 
         };
 
         if (isTrack) {

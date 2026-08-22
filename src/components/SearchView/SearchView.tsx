@@ -271,7 +271,7 @@ const SearchView = ({
 
         const playAsTrack = () => {
             if (!onTrackSelect) return;
-            onTrackSelect(normalizeTrack(item, lowDataMode), []);
+            onTrackSelect(normalizeTrack(item, lowDataMode), tracks || []);
         };
 
         if (isTrack) {
@@ -533,7 +533,7 @@ const SearchView = ({
                                         <div 
                                             key={track.id} 
                                             className={`song-item ${menuTrackId === track.id ? 'menu-open' : ''}`} 
-                                            onClick={() => onTrackSelect?.(normalized, [normalized])}
+                                            onClick={() => onTrackSelect?.(normalized, tracks || [normalized])}
                                             onContextMenu={(e) => handleTrackMenuClick(e, track)}
                                         >
                                             <img src={track.album?.images?.[0]?.url || ALBUM_PLACEHOLDER} alt={track.name} className="song-img" loading="lazy" />
@@ -708,7 +708,7 @@ const SearchView = ({
                                 <div 
                                     key={track.id} 
                                     className={`song-item ${menuTrackId === track.id ? 'menu-open' : ''}`} 
-                                    onClick={() => onTrackSelect?.(normalized, [normalized])}
+                                    onClick={() => onTrackSelect?.(normalized, tracks || [normalized])}
                                     onContextMenu={(e) => handleTrackMenuClick(e, track)}
                                 >
                                     <img src={track.album?.images?.[0]?.url || ALBUM_PLACEHOLDER} alt={track.name} className="song-img" loading="lazy" />

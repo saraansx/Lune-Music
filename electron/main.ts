@@ -32,10 +32,13 @@ import { create as createYtDlp } from 'yt-dlp-exec';
 const __dirname = path.dirname(nodeUrl.fileURLToPath(import.meta.url))
 
 const isPackaged = app.isPackaged;
+const isWin = process.platform === 'win32';
+const isMac = process.platform === 'darwin';
 
+const ytDlpBinaryFileName = isWin ? 'yt-dlp.exe' : (isMac ? 'yt-dlp_macos' : 'yt-dlp');
 const ytDlpBinaryPath = isPackaged 
-    ? path.join(app.getPath('userData'), 'yt-dlp.exe')
-    : path.join(app.getAppPath(), 'node_modules', 'yt-dlp-exec', 'bin', 'yt-dlp.exe');
+    ? path.join(app.getPath('userData'), ytDlpBinaryFileName)
+    : path.join(app.getAppPath(), 'node_modules', 'yt-dlp-exec', 'bin', isWin ? 'yt-dlp.exe' : 'yt-dlp');
 
 if (fs.existsSync(ytDlpBinaryPath)) {
     const customYtDlp = createYtDlp(ytDlpBinaryPath);
@@ -148,7 +151,9 @@ if (!gotTheLock) {
     resizable: true,
     icon: iconPath,
     backgroundColor: '#06080c',
-    frame: false, 
+    frame: !isMac ? false : true,
+    titleBarStyle: isMac ? 'hiddenInset' : 'default',
+    trafficLightPosition: isMac ? { x: 16, y: 12 } : undefined,
     transparent: false,
     show: false,
     paintWhenInitiallyHidden: true,
@@ -538,7 +543,8 @@ app.whenReady().then(async () => {
            console.log(`[Main] yt-dlp update available: ${currentVersion} -> ${latestVersion}`);
            if (manual) win?.webContents.send('ytdlp-update-status', { status: 'downloading', message: `Downloading yt-dlp ${latestVersion}...` });
            
-           const assetRes = await fetch(`https://github.com/yt-dlp/yt-dlp/releases/download/${latestVersion}/yt-dlp.exe`);
+           const downloadFileName = isWin ? 'yt-dlp.exe' : (isMac ? 'yt-dlp_macos' : 'yt-dlp');
+           const assetRes = await fetch(`https://github.com/yt-dlp/yt-dlp/releases/download/${latestVersion}/${downloadFileName}`);
            if (assetRes.ok) {
                const arrayBuffer = await assetRes.arrayBuffer();
 
@@ -547,7 +553,10 @@ app.whenReady().then(async () => {
                    const shaText = await shaRes.text();
                    const expectedHash = shaText
                        .split('\n')
-                       .find(line => line.trim().endsWith('yt-dlp.exe'))
+                       .find(line => {
+                           const trimmed = line.trim();
+                           return trimmed.endsWith(downloadFileName) || (isMac && trimmed.endsWith('yt-dlp_macos')) || (!isWin && trimmed.endsWith('yt-dlp'));
+                       })
                        ?.split(/\s+/)[0]
                        ?.toLowerCase();
                    if (expectedHash) {
@@ -560,6 +569,11 @@ app.whenReady().then(async () => {
                }
 
                await fs.promises.writeFile(ytDlpBinaryPath, Buffer.from(arrayBuffer));
+               if (!isWin) {
+                   try {
+                       await fs.promises.chmod(ytDlpBinaryPath, 0o755);
+                   } catch {}
+               }
                console.log(`[Main] yt-dlp downloaded/updated successfully to ${latestVersion}`);
                 const freshYtDlp = createYtDlp(ytDlpBinaryPath);
                 ytdlpAudio.setYtDlpInstance(freshYtDlp);

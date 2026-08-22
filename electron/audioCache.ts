@@ -53,6 +53,20 @@ export class AudioCacheManager {
                 if (fs.existsSync(candidate)) {
                     const stats = fs.statSync(candidate);
                     if (stats.size > 100 * 1024) { // Minimum 100KB for valid audio file
+                        // Validate magic bytes to ensure it is not an HTML error page or corrupted JSON
+                        const fd = fs.openSync(candidate, 'r');
+                        const headerBuf = Buffer.alloc(16);
+                        fs.readSync(fd, headerBuf, 0, 16, 0);
+                        fs.closeSync(fd);
+
+                        // Check if file starts with HTML/text markers: '<', '{', '[', ' '
+                        const firstByte = headerBuf[0];
+                        if (firstByte === 0x3C || firstByte === 0x7B || firstByte === 0x5B || firstByte === 0x20 || firstByte === 0x0A) {
+                            console.warn(`[AudioCache] Detected corrupted/HTML cache file for ${trackId}. Deleting...`);
+                            try { fs.unlinkSync(candidate); } catch (_) {}
+                            continue;
+                        }
+
                         // Update mtime to mark recently used
                         const now = new Date();
                         fs.utimes(candidate, now, now, () => {});
@@ -66,6 +80,25 @@ export class AudioCacheManager {
 
     public has(trackId: string): boolean {
         return this.get(trackId) !== null;
+    }
+
+    public remove(trackId: string): boolean {
+        if (!trackId || trackId === 'unknown') return false;
+        this.abortWriter(trackId);
+        this.ensureCacheDir();
+        let removed = false;
+        const possibleExts = ['.webm', '.mp4', '.m4a', '.audio'];
+        for (const ext of possibleExts) {
+            const candidate = path.join(this.cacheDir, `${trackId}${ext}`);
+            try {
+                if (fs.existsSync(candidate)) {
+                    fs.unlinkSync(candidate);
+                    removed = true;
+                    console.log(`[AudioCache] Deleted cached track file: ${path.basename(candidate)}`);
+                }
+            } catch (e) {}
+        }
+        return removed;
     }
 
     public startCaching(trackId: string, mimeType: string = 'audio/webm'): {

@@ -39,12 +39,12 @@ interface PlaybackContextType {
   setEqBands: (bands: number[]) => void;
   spatialAudioEnabled: boolean;
   setSpatialAudioEnabled: (enabled: boolean) => void;
-  spatialAudioMode: 'off' | 'dts3d' | 'surround71' | 'concert' | 'studio' | 'club' | 'audiophile';
-  setSpatialAudioMode: (mode: 'off' | 'dts3d' | 'surround71' | 'concert' | 'studio' | 'club' | 'audiophile') => void;
+  spatialAudioMode: 'off' | 'dts3d' | 'surround71' | 'studio' | 'club' | 'audiophile';
+  setSpatialAudioMode: (mode: 'off' | 'dts3d' | 'surround71' | 'studio' | 'club' | 'audiophile') => void;
   spatialWidth: number;
   setSpatialWidth: (width: number) => void;
-  spatialRoomSize: 'small' | 'medium' | 'large' | 'arena';
-  setSpatialRoomSize: (size: 'small' | 'medium' | 'large' | 'arena') => void;
+  spatialRoomSize: 'small' | 'medium';
+  setSpatialRoomSize: (size: 'small' | 'medium') => void;
   spatialBassBoost: number;
   setSpatialBassBoost: (boost: number) => void;
   spatialVocalClarity: number;
@@ -76,9 +76,9 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [eqEnabled, setEqEnabledState] = useState<boolean>(false);
   const [eqBands, setEqBandsState] = useState<number[]>([0, 0, 0, 0, 0]);
   const [spatialAudioEnabled, setSpatialAudioEnabledState] = useState<boolean>(false);
-  const [spatialAudioMode, setSpatialAudioModeState] = useState<'off' | 'dts3d' | 'surround71' | 'concert' | 'studio' | 'club' | 'audiophile'>('dts3d');
+  const [spatialAudioMode, setSpatialAudioModeState] = useState<'off' | 'dts3d' | 'surround71' | 'studio' | 'club' | 'audiophile'>('dts3d');
   const [spatialWidth, setSpatialWidthState] = useState<number>(1.4);
-  const [spatialRoomSize, setSpatialRoomSizeState] = useState<'small' | 'medium' | 'large' | 'arena'>('medium');
+  const [spatialRoomSize, setSpatialRoomSizeState] = useState<'small' | 'medium'>('medium');
   const [spatialBassBoost, setSpatialBassBoostState] = useState<number>(4);
   const [spatialVocalClarity, setSpatialVocalClarityState] = useState<number>(3);
   const [spatialTubeWarmth, setSpatialTubeWarmthState] = useState<boolean>(true);
@@ -183,8 +183,10 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
 
         const savedSpatialMode = await window.ipcRenderer?.invoke('get-setting', 'spatialAudioMode');
-        if (savedSpatialMode !== null && savedSpatialMode !== undefined) {
+        if (savedSpatialMode && ['off', 'dts3d', 'surround71', 'studio', 'club', 'audiophile'].includes(savedSpatialMode)) {
           setSpatialAudioModeState(savedSpatialMode);
+        } else if (savedSpatialMode) {
+          setSpatialAudioModeState('dts3d');
         }
 
         const savedBass = await window.ipcRenderer?.invoke('get-setting', 'spatialBassBoost');
@@ -208,8 +210,10 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
 
         const savedRoom = await window.ipcRenderer?.invoke('get-setting', 'spatialRoomSize');
-        if (savedRoom !== null && savedRoom !== undefined) {
+        if (savedRoom && ['small', 'medium'].includes(savedRoom)) {
           setSpatialRoomSizeState(savedRoom);
+        } else if (savedRoom) {
+          setSpatialRoomSizeState('medium');
         }
 
         const savedGapless = await window.ipcRenderer?.invoke('get-setting', 'gaplessEnabled');
@@ -310,7 +314,7 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     debouncedSave('spatialAudioEnabled', enabled);
   };
 
-  const setSpatialAudioMode = (mode: 'off' | 'dts3d' | 'surround71' | 'concert' | 'studio' | 'club' | 'audiophile') => {
+  const setSpatialAudioMode = (mode: 'off' | 'dts3d' | 'surround71' | 'studio' | 'club' | 'audiophile') => {
     setSpatialAudioModeState(mode);
     debouncedSave('spatialAudioMode', mode);
   };
@@ -320,7 +324,7 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     debouncedSave('spatialWidth', width);
   };
 
-  const setSpatialRoomSize = (size: 'small' | 'medium' | 'large' | 'arena') => {
+  const setSpatialRoomSize = (size: 'small' | 'medium') => {
     setSpatialRoomSizeState(size);
     debouncedSave('spatialRoomSize', size);
   };

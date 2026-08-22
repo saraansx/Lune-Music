@@ -1,12 +1,17 @@
 import { execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, chmod } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
-const binaryPath = join(root, 'node_modules', 'yt-dlp-exec', 'bin', 'yt-dlp.exe');
+
+const isWin = process.platform === 'win32';
+const isMac = process.platform === 'darwin';
+
+const binaryName = isWin ? 'yt-dlp.exe' : (isMac ? 'yt-dlp_macos' : 'yt-dlp');
+const binaryPath = join(root, 'node_modules', 'yt-dlp-exec', 'bin', isWin ? 'yt-dlp.exe' : 'yt-dlp');
 
 async function main() {
   let version;
@@ -17,7 +22,7 @@ async function main() {
     return;
   }
 
-  console.log(`[verify-yt-dlp] Checking yt-dlp ${version} against official checksums...`);
+  console.log(`[verify-yt-dlp] Checking yt-dlp ${version} on ${process.platform} against official checksums...`);
 
   const shaRes = await fetch(`https://github.com/yt-dlp/yt-dlp/releases/download/${version}/SHA2-256SUMS`);
   if (!shaRes.ok) {
@@ -28,12 +33,15 @@ async function main() {
   const shaText = await shaRes.text();
   const expectedHash = shaText
     .split('\n')
-    .find(line => line.trim().endsWith('yt-dlp.exe'))
+    .find(line => {
+      const trimmed = line.trim();
+      return trimmed.endsWith(binaryName) || (isMac && trimmed.endsWith('yt-dlp_macos')) || (!isWin && trimmed.endsWith('yt-dlp'));
+    })
     ?.split(/\s+/)[0]
     ?.toLowerCase();
 
   if (!expectedHash) {
-    console.warn('[verify-yt-dlp] Could not find yt-dlp.exe entry in checksums — skipping');
+    console.warn(`[verify-yt-dlp] Could not find ${binaryName} entry in checksums — skipping`);
     return;
   }
 
@@ -44,7 +52,8 @@ async function main() {
     console.error(`[verify-yt-dlp] HASH MISMATCH! Expected ${expectedHash}, got ${actualHash}`);
     console.log('[verify-yt-dlp] Re-downloading from official source...');
 
-    const dlRes = await fetch(`https://github.com/yt-dlp/yt-dlp/releases/download/${version}/yt-dlp.exe`);
+    const downloadFileName = isWin ? 'yt-dlp.exe' : (isMac ? 'yt-dlp_macos' : 'yt-dlp');
+    const dlRes = await fetch(`https://github.com/yt-dlp/yt-dlp/releases/download/${version}/${downloadFileName}`);
     if (!dlRes.ok) throw new Error(`Download failed: HTTP ${dlRes.status}`);
 
     const dlBuf = Buffer.from(await dlRes.arrayBuffer());
@@ -55,6 +64,11 @@ async function main() {
     }
 
     await writeFile(binaryPath, dlBuf);
+    if (!isWin) {
+      try {
+        await chmod(binaryPath, 0o755);
+      } catch {}
+    }
     console.log('[verify-yt-dlp] Re-downloaded and verified successfully');
   } else {
     console.log('[verify-yt-dlp] OK — hash matches official release');
@@ -65,3 +79,4 @@ main().catch(err => {
   console.error('[verify-yt-dlp] FAILED:', err.message);
   process.exit(1);
 });
+

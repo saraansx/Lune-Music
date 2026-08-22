@@ -6,5 +6,7 @@ declare namespace NodeJS {
 }
 
 interface Window {
-  ipcRenderer: import("electron").IpcRenderer;
+  ipcRenderer: import("electron").IpcRenderer & {
+    platform?: string;
+  };
 }

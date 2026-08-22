@@ -22,17 +22,6 @@
     pointer-events: none;
 }
 
-.splash-glow-backdrop {
-    position: absolute;
-    width: 380px;
-    height: 380px;
-    background: radial-gradient(circle, rgba(147, 51, 234, 0.25) 0%, rgba(56, 189, 248, 0.15) 45%, transparent 70%);
-    filter: blur(50px);
-    border-radius: 50%;
-    pointer-events: none;
-    animation: splashGlowPulse 3s ease-in-out infinite alternate;
-}
-
 .splash-logo-container {
     position: relative;
     z-index: 2;
@@ -134,17 +123,6 @@
     }
     50% {
         transform: translateY(-6px);
-    }
-}
-
-@keyframes splashGlowPulse {
-    0% {
-        transform: scale(0.85);
-        opacity: 0.4;
-    }
-    100% {
-        transform: scale(1.15);
-        opacity: 0.8;
     }
 }
 

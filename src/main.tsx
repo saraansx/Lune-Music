@@ -70,12 +70,15 @@ const FallbackLoader = () => (
 
 const DynamicColorSync: React.FC = () => {
   const { currentTrack } = usePlayer();
-  const { dynamicColor, applyDynamicColor, isInApp } = useTheme();
+  const { dynamicColor, applyDynamicColor } = useTheme();
   const lastAppliedUrl = React.useRef<string | null>(null);
   const debounceRef    = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => {
-    if (!dynamicColor || !isInApp) return;
+    if (!dynamicColor) {
+      lastAppliedUrl.current = null;
+      return;
+    }
     const url = currentTrack?.albumArt;
     if (!url || url === lastAppliedUrl.current) return;
 
@@ -84,18 +87,19 @@ const DynamicColorSync: React.FC = () => {
       lastAppliedUrl.current = url;
       applyDynamicColor(url);
       debounceRef.current = null;
-    }, 300);
+    }, 200);
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [currentTrack?.albumArt, dynamicColor, applyDynamicColor, isInApp]);
+  }, [currentTrack?.albumArt, dynamicColor, applyDynamicColor]);
 
   React.useEffect(() => {
-    if (dynamicColor && isInApp && currentTrack?.albumArt) {
+    if (dynamicColor && currentTrack?.albumArt) {
+      lastAppliedUrl.current = currentTrack.albumArt;
       applyDynamicColor(currentTrack.albumArt);
     }
-  }, [dynamicColor, isInApp]);
+  }, [dynamicColor]);
 
   return null;
 };

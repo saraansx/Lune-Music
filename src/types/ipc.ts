@@ -84,4 +84,5 @@ export interface IpcRenderer {
         channel: K,
         ...args: Parameters<IPCChannels[K]>
     ) => ReturnType<IPCChannels[K]>;
+    platform?: string;
 }
