@@ -20,11 +20,20 @@ export function normalizeTrackForDB(track: any) {
 export function registerDatabaseHandlers() {
     const db = getDatabase();
 
+    // Cache compiled statements to minimize SQLite parsing overhead
+    const stmtGetFavorites = db ? db.prepare('SELECT * FROM favorites ORDER BY addedAt DESC') : null;
+    const stmtCheckFavorite = db ? db.prepare('SELECT 1 FROM favorites WHERE id = ?') : null;
+    const stmtDeleteFavorite = db ? db.prepare('DELETE FROM favorites WHERE id = ?') : null;
+    const stmtAddFavorite = db ? db.prepare(`
+        INSERT OR REPLACE INTO favorites (id, name, artist, albumName, albumArt, durationMs, addedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    `) : null;
+    const stmtGetPinned = db ? db.prepare('SELECT * FROM pinned_collections ORDER BY pinnedAt DESC') : null;
+
     ipcMain.handle('get-local-favorites', () => {
-        if (!db) return [];
+        if (!stmtGetFavorites) return [];
         try {
-            const stmt = db.prepare('SELECT * FROM favorites ORDER BY addedAt DESC');
-            return stmt.all();
+            return stmtGetFavorites.all();
         } catch (error) {
             console.error('Favorites Retrieval Error', error);
             return [];
@@ -32,14 +41,10 @@ export function registerDatabaseHandlers() {
     });
 
     ipcMain.handle('add-local-favorite', (_event, track) => {
-        if (!db) return false;
+        if (!stmtAddFavorite) return false;
         try {
             const normalized = normalizeTrackForDB(track);
-            const stmt = db.prepare(`
-                INSERT OR REPLACE INTO favorites (id, name, artist, albumName, albumArt, durationMs, addedAt)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            `);
-            stmt.run(normalized.id, normalized.name, normalized.artist, normalized.albumName, normalized.albumArt, normalized.durationMs, Date.now());
+            stmtAddFavorite.run(normalized.id, normalized.name, normalized.artist, normalized.albumName, normalized.albumArt, normalized.durationMs, Date.now());
             return true;
         } catch (error) {
             console.error('Favorites Save Error', error);
@@ -48,10 +53,9 @@ export function registerDatabaseHandlers() {
     });
 
     ipcMain.handle('remove-local-favorite', (_event, trackId) => {
-        if (!db) return false;
+        if (!stmtDeleteFavorite) return false;
         try {
-            const stmt = db.prepare('DELETE FROM favorites WHERE id = ?');
-            stmt.run(trackId);
+            stmtDeleteFavorite.run(trackId);
             return true;
         } catch (error) {
             console.error('Favorites Delete Error', error);
@@ -60,9 +64,9 @@ export function registerDatabaseHandlers() {
     });
 
     ipcMain.handle('check-local-favorite', (_event, trackId) => {
-        if (!db) return false;
+        if (!stmtCheckFavorite) return false;
         try {
-            const result = db.prepare('SELECT 1 FROM favorites WHERE id = ?').get(trackId);
+            const result = stmtCheckFavorite.get(trackId);
             return !!result;
         } catch (error) {
             return false;
@@ -70,10 +74,9 @@ export function registerDatabaseHandlers() {
     });
 
     ipcMain.handle('get-pinned-collections', () => {
-        if (!db) return [];
+        if (!stmtGetPinned) return [];
         try {
-            const stmt = db.prepare('SELECT * FROM pinned_collections ORDER BY pinnedAt DESC');
-            return stmt.all();
+            return stmtGetPinned.all();
         } catch (error) {
             console.error('Pinned Collections Retrieval Error', error);
             return [];
@@ -391,6 +394,70 @@ export function registerDatabaseHandlers() {
             return !!result;
         } catch (error) {
             return false;
+        }
+    });
+
+    // ── Listening Time & Real-World Stats ──
+    const stmtRecordListening = db ? db.prepare(`
+        INSERT INTO listening_stats (date, trackId, trackName, artist, seconds, plays, lastListenedAt)
+        VALUES (?, ?, ?, ?, ?, 1, ?)
+        ON CONFLICT(date, trackId) DO UPDATE SET
+            seconds = seconds + excluded.seconds,
+            lastListenedAt = excluded.lastListenedAt
+    `) : null;
+
+    ipcMain.handle('record-listening-time', (_event, data: { trackId: string; trackName: string; artist: string; seconds: number }) => {
+        if (!stmtRecordListening || !data || !data.trackId || data.seconds <= 0) return false;
+        try {
+            const today = new Date().toISOString().slice(0, 10);
+            stmtRecordListening.run(
+                today,
+                data.trackId,
+                data.trackName || 'Unknown Track',
+                data.artist || 'Unknown Artist',
+                Math.round(data.seconds),
+                Date.now()
+            );
+            return true;
+        } catch (error) {
+            console.error('Listening Time Recording Error', error);
+            return false;
+        }
+    });
+
+    ipcMain.handle('get-listening-stats', () => {
+        if (!db) return { totalSeconds: 0, todaySeconds: 0, topArtists: [], dailyHistory: [] };
+        try {
+            const today = new Date().toISOString().slice(0, 10);
+
+            const totalRow = db.prepare('SELECT COALESCE(SUM(seconds), 0) as total FROM listening_stats').get();
+            const todayRow = db.prepare('SELECT COALESCE(SUM(seconds), 0) as total FROM listening_stats WHERE date = ?').get(today);
+
+            const topArtists = db.prepare(`
+                SELECT artist, SUM(seconds) as seconds, COUNT(DISTINCT trackId) as tracksCount
+                FROM listening_stats
+                GROUP BY artist
+                ORDER BY seconds DESC
+                LIMIT 5
+            `).all();
+
+            const dailyHistory = db.prepare(`
+                SELECT date, SUM(seconds) as seconds
+                FROM listening_stats
+                GROUP BY date
+                ORDER BY date DESC
+                LIMIT 7
+            `).all();
+
+            return {
+                totalSeconds: totalRow?.total || 0,
+                todaySeconds: todayRow?.total || 0,
+                topArtists: topArtists || [],
+                dailyHistory: (dailyHistory || []).reverse()
+            };
+        } catch (error) {
+            console.error('Listening Stats Retrieval Error', error);
+            return { totalSeconds: 0, todaySeconds: 0, topArtists: [], dailyHistory: [] };
         }
     });
 }

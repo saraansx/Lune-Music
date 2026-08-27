@@ -1,15 +1,15 @@
 .title-bar {
     position: relative;
     width: 100%;
-    height: 38px;
+    height: 36px;
     flex-shrink: 0;
     background: transparent;
     -webkit-app-region: drag;
-    border-bottom: 1px solid rgba(var(--text-main-rgb), 0.06);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: var(--z-titlebar);
+    z-index: var(--z-titlebar, 900);
 }
 
 .title-bar.is-mac {
@@ -17,49 +17,65 @@
 }
 
 .app-title {
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.2em;
-    color: rgba(var(--text-main-rgb), 0.85);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.35em;
+    text-indent: 0.35em;
+    color: var(--text-dim, #8892a4);
     text-transform: uppercase;
     pointer-events: none;
     user-select: none;
+    opacity: 0.8;
 }
 
 .window-controls {
     position: absolute;
     right: 12px;
-    top: 4px;
+    top: 50%;
+    transform: translateY(-50%);
     display: flex;
+    align-items: center;
     gap: 6px;
     -webkit-app-region: no-drag;
 }
 
 .control-btn {
-    width: 30px;
-    height: 30px;
+    width: 26px;
+    height: 26px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: rgba(var(--text-main-rgb), 0.85);
+    color: var(--text-dim, #8892a4);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 6px;
-    transition: all 0.2s ease;
-    background: transparent;
-    border: none;
+    transition: all 0.15s ease;
     cursor: pointer;
+    outline: none;
 }
 
 .control-btn svg {
-    width: 14px;
-    height: 14px;
+    width: 10px;
+    height: 10px;
 }
 
 .control-btn:hover {
-    background: var(--hover-bg);
-    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: var(--text-main, #ffffff);
+}
+
+.control-btn:active {
+    transform: scale(0.96);
+    background: rgba(255, 255, 255, 0.12);
 }
 
 .control-btn.close:hover {
-    background: rgba(239, 68, 68, 0.8);
-    color: white;
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #ef4444;
+}
+
+.control-btn.close:active {
+    background: rgba(239, 68, 68, 0.3);
 }

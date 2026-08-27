@@ -2,6 +2,14 @@
 
 All notable changes to Luniq will be documented in this file.
 
+## [2.0.1] - 2026-08-27
+
+#### Fixed
+
+- **AudioCache `EventEmitter` Memory Leak (`MaxListenersExceededWarning`):** Removed a no-op `writeStream.once('drain', () => {})` call inside `AudioCacheManager.startCaching()` that was being registered on every audio chunk written while Node signalled stream backpressure. Because the listener was never removed and a new one was added on each write, the `WriteStream` accumulated 11+ `drain` listeners almost immediately during audio caching, triggering a `MaxListenersExceededWarning`. The empty callback was deleted entirely — the stream continues to drain normally without it.
+
+- **Settings Loading Skeleton Layout:** Rebuilt `SettingsSkeleton` in `src/components/Skeleton/Skeleton.tsx` to precisely mirror the two-column `settings-layout` DOM structure — left `.settings-sidebar` column (with shimmer navigation pills) and right `.settings-main-scroll` column (with shimmer section headings and control rows). Wrapped `<Settings>` in a `React.Suspense` boundary in `main.tsx` so the correctly-shaped skeleton is shown during lazy-load instead of a generic placeholder.
+
 ## [2.0.0] - 2026-08-20
 
 #### Added

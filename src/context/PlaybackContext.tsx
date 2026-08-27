@@ -39,8 +39,8 @@ interface PlaybackContextType {
   setEqBands: (bands: number[]) => void;
   spatialAudioEnabled: boolean;
   setSpatialAudioEnabled: (enabled: boolean) => void;
-  spatialAudioMode: 'off' | 'dts3d' | 'surround71' | 'studio' | 'club' | 'audiophile';
-  setSpatialAudioMode: (mode: 'off' | 'dts3d' | 'surround71' | 'studio' | 'club' | 'audiophile') => void;
+  spatialAudioMode: 'off' | 'audiophile' | 'studio';
+  setSpatialAudioMode: (mode: 'off' | 'audiophile' | 'studio') => void;
   spatialWidth: number;
   setSpatialWidth: (width: number) => void;
   spatialRoomSize: 'small' | 'medium';
@@ -76,7 +76,7 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [eqEnabled, setEqEnabledState] = useState<boolean>(false);
   const [eqBands, setEqBandsState] = useState<number[]>([0, 0, 0, 0, 0]);
   const [spatialAudioEnabled, setSpatialAudioEnabledState] = useState<boolean>(false);
-  const [spatialAudioMode, setSpatialAudioModeState] = useState<'off' | 'dts3d' | 'surround71' | 'studio' | 'club' | 'audiophile'>('dts3d');
+  const [spatialAudioMode, setSpatialAudioModeState] = useState<'off' | 'audiophile' | 'studio'>('audiophile');
   const [spatialWidth, setSpatialWidthState] = useState<number>(1.4);
   const [spatialRoomSize, setSpatialRoomSizeState] = useState<'small' | 'medium'>('medium');
   const [spatialBassBoost, setSpatialBassBoostState] = useState<number>(4);
@@ -183,10 +183,10 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
 
         const savedSpatialMode = await window.ipcRenderer?.invoke('get-setting', 'spatialAudioMode');
-        if (savedSpatialMode && ['off', 'dts3d', 'surround71', 'studio', 'club', 'audiophile'].includes(savedSpatialMode)) {
+        if (savedSpatialMode && ['off', 'audiophile', 'studio'].includes(savedSpatialMode)) {
           setSpatialAudioModeState(savedSpatialMode);
         } else if (savedSpatialMode) {
-          setSpatialAudioModeState('dts3d');
+          setSpatialAudioModeState('audiophile');
         }
 
         const savedBass = await window.ipcRenderer?.invoke('get-setting', 'spatialBassBoost');
@@ -314,7 +314,7 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     debouncedSave('spatialAudioEnabled', enabled);
   };
 
-  const setSpatialAudioMode = (mode: 'off' | 'dts3d' | 'surround71' | 'studio' | 'club' | 'audiophile') => {
+  const setSpatialAudioMode = (mode: 'off' | 'audiophile' | 'studio') => {
     setSpatialAudioModeState(mode);
     debouncedSave('spatialAudioMode', mode);
   };

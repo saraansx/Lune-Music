@@ -14,7 +14,7 @@
       <img src="https://img.shields.io/badge/License-GPL--3.0-transparent?style=flat&color=C0C0C0&labelColor=333333" alt="License: GPL v3" />
     </a>
     <img src="https://img.shields.io/badge/Platform-Desktop-transparent?style=flat&color=C0C0C0&labelColor=333333" alt="Platform: Desktop" />
-    <img src="https://img.shields.io/badge/Version-1.0.6-transparent?style=flat&color=C0C0C0&labelColor=333333" alt="Version 1.0.6" />
+    <img src="https://img.shields.io/badge/Version-2.0.1-transparent?style=flat&color=C0C0C0&labelColor=333333" alt="Version 2.0.1" />
     <a href="https://discord.gg/TardrVJT9N">
       <img src="https://img.shields.io/badge/Discord-Join%20Us-transparent?style=flat&color=C0C0C0&labelColor=333333&logo=discord&logoColor=C0C0C0" alt="Discord" />
     </a>
@@ -67,7 +67,7 @@ npm run dev
 Luniq is built on a modern, high-performance stack designed for the desktop:
 
 - **Logic**: [React 18](https://reactjs.org/) + [TypeScript](https://www.typescriptlang.org/)
-- **Desktop Foundation**: [Electron 30](https://www.electronjs.org/)
+- **Desktop Foundation**: [Electron 42](https://www.electronjs.org/)
 - **Build Tooling**: [Vite 5](https://vitejs.dev/)
 - **Database**: [Better-SQLite3](https://github.com/WiseLibs/better-sqlite3) for persistence and unified library management.
 - **Audio Engine**: `yt-dlp` for optimized stream harvesting and download management.

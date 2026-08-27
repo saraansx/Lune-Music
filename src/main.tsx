@@ -54,19 +54,37 @@ const LyricsView = React.lazy(() => import('./components/LyricsView/LyricsView')
 const Settings = React.lazy(() => import('./Settings/settings/Settings'));
 import updatesImg from './assets/Updates.png';
 import mainLogo from './assets/Main.png';
+import { HomeSkeleton, SettingsSkeleton } from './components/Skeleton/Skeleton';
 
 const MiniPlayerView = React.lazy(() => import('./components/MiniPlayer/MiniPlayerView'));
 const FloatingLyrics = React.lazy(() => import('./components/FloatingLyrics/FloatingLyrics'));
 
-const FallbackLoader = () => (
-  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', width: '100%', flexDirection: 'column', color: 'var(--text-dim)', opacity: 0, animation: 'fadeIn 0.2s ease 0.1s forwards' }}>
-    <div className="playing-animation" style={{ transform: 'scale(1.5)', opacity: 0.5 }}>
-      <div className="bar bar1"></div>
-      <div className="bar bar2"></div>
-      <div className="bar bar3"></div>
-    </div>
-  </div>
-);
+const FallbackLoader = () => <HomeSkeleton />;
+
+const CustomWallpaperLayer: React.FC = () => {
+  const { customBackground, bgBlur, bgOpacity, bgFit } = useTheme();
+  if (!customBackground) return null;
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundImage: `url("${customBackground}")`,
+        backgroundSize: bgFit,
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        filter: `blur(${bgBlur}px)`,
+        opacity: bgOpacity / 100,
+        pointerEvents: 'none',
+        zIndex: 0,
+        transform: 'scale(1.05)',
+        transition: 'opacity 0.3s ease, filter 0.3s ease',
+      }}
+      aria-hidden="true"
+    />
+  );
+};
 
 const DynamicColorSync: React.FC = () => {
   const { currentTrack } = usePlayer();
@@ -163,33 +181,19 @@ const MainLayout = ({
         <>
           <TitleBar />
           <div style={{ display: 'flex', flex: 1, overflow: 'hidden', width: '100%' }}>
-            <Sidebar
-              accessToken={credentials.accessToken}
-              cookies={credentials.cookies}
-              onPlaylistSelect={handlePlaylistSelect}
-              onArtistSelect={handleArtistSelect}
-              isOnline={isOnline}
-            />
-            <div style={{ 
-              flex: 1, 
-              overflow: 'hidden', 
-              width: '100%', 
-              height: 'calc(100% - 12px)',
-              margin: '6px 8px 6px 0',
-              display: 'flex', 
-              flexDirection: 'column', 
-              position: 'relative',
-              background: 'rgba(12, 15, 22, 0.45)',
-              backdropFilter: 'blur(40px)',
-              WebkitBackdropFilter: 'blur(40px)',
-              borderRadius: '12px',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.35)',
-              transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
-            }}>
-              <div className="top-global-nav" style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', width: '100%' }}>
-                <div className="luniq-nav-btn-container" style={{ justifySelf: 'start' }}>
-                  {view !== 'settings' && (
+            <div className={`main-sidebar-wrapper ${view === 'settings' ? 'sidebar-hidden' : ''}`}>
+              <Sidebar
+                accessToken={credentials.accessToken}
+                cookies={credentials.cookies}
+                onPlaylistSelect={handlePlaylistSelect}
+                onArtistSelect={handleArtistSelect}
+                isOnline={isOnline}
+              />
+            </div>
+            <div className={`main-view-shell ${view === 'settings' ? 'in-settings-view' : ''}`}>
+              <div className="top-global-nav" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                <div className="luniq-nav-btn-container" style={{ display: 'flex', alignItems: 'center' }}>
+                  {view !== 'settings' ? (
                     <>
                       <button 
                         onClick={handlePopBack} 
@@ -228,10 +232,18 @@ const MainLayout = ({
                         </div>
                       )}
                     </>
+                  ) : (
+                    <button 
+                      onClick={handleSettingsClick} 
+                      className="luniq-nav-btn" 
+                      title={t('nav.back')}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    </button>
                   )}
                 </div>
 
-                <div style={{ justifySelf: 'center' }}>
+                <div className={`top-search-wrapper ${view === 'settings' ? 'search-hidden' : ''}`}>
                   {isOnline && (
                     <SearchBar 
                       accessToken={credentials.accessToken}
@@ -303,7 +315,9 @@ const MainLayout = ({
                     onPlaylistSelect={handlePlaylistSelect}
                   />
                 ) : view === 'settings' ? (
-                  <Settings accessToken={credentials?.accessToken} cookies={credentials?.cookies} isClosing={isSettingsClosing} />
+                  <React.Suspense fallback={<SettingsSkeleton />}>
+                    <Settings accessToken={credentials?.accessToken} cookies={credentials?.cookies} isClosing={isSettingsClosing} />
+                  </React.Suspense>
                 ) : (
                   selectedPlaylistId && (
                     <Playlist
@@ -863,6 +877,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <PlaybackProvider>
         <LanguageProvider>
           <PlayerProvider>
+            <CustomWallpaperLayer />
             <DynamicColorSync />
             <App />
           </PlayerProvider>

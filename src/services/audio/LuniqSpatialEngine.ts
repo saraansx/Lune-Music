@@ -12,7 +12,7 @@
  * 8. Dynamic Continuous Auto-Gain Headroom Trim & -0.2 dBFS Studio Peak Limiter.
  */
 
-export type SpatialSoundstageMode = 'off' | 'dts3d' | 'surround71' | 'studio' | 'club' | 'audiophile';
+export type SpatialSoundstageMode = 'off' | 'audiophile' | 'studio';
 export type RoomSizePreset = 'small' | 'medium';
 
 export interface SpatialAudioConfig {
@@ -32,11 +32,12 @@ export class LuniqSpatialEngine {
   public inputNode: GainNode;
   public outputNode: GainNode;
 
-  // 1. Dynamic Sub-Bass & Vocal Sculptor Filters
-  private subBassFilter: BiquadFilterNode;
-  private punchBassFilter: BiquadFilterNode;
-  private vocalFilter: BiquadFilterNode;
-  private airFilter: BiquadFilterNode;
+  // 1. Dynamic 3-Stage Psychoacoustic Sub-Bass & Vocal Sculptor Filters
+  private subBassInfrasonicFilter: BiquadFilterNode; // Stage 1: 42Hz Deep Rumble Core
+  private punchBassFilter: BiquadFilterNode;         // Stage 2: 85Hz Transient Chest Slam
+  private harmonicBassFilter: BiquadFilterNode;      // Stage 3: 165Hz Psychoacoustic Upper Harmonics
+  private vocalFilter: BiquadFilterNode;             // 3.2kHz Pinna concha vocal clarity
+  private airFilter: BiquadFilterNode;               // 12.5kHz Diffuse-field air sheen
 
   // 2. Channel Splitter & Independent Binaural Crossfeed
   private inputSplitter: ChannelSplitterNode;
@@ -49,14 +50,15 @@ export class LuniqSpatialEngine {
   private crossfeedGainLtoR: GainNode;
   private crossfeedGainRtoL: GainNode;
 
-  // 3. True Mid / Side Soundstage Matrix
+  // 3. True Mid / Side Soundstage Matrix with 115Hz Mono-Maker
   private midEncL: GainNode;
   private midEncR: GainNode;
   private sideEncL: GainNode;
   private sideEncR: GainNode;
   private midSum: GainNode;
   private sideSum: GainNode;
-  private sideMonoMaker: BiquadFilterNode;
+  private sideMonoMaker1: BiquadFilterNode; // Cascaded 24dB/oct Linkwitz-Riley Mono-Maker
+  private sideMonoMaker2: BiquadFilterNode;
   private midGain: GainNode;
   private sideGain: GainNode;
   private decLL: GainNode;
@@ -97,27 +99,38 @@ export class LuniqSpatialEngine {
     this.inputNode = this.ctx.createGain();
     this.outputNode = this.ctx.createGain();
 
-    // --- 1. Dynamic Sub-Bass & Vocal Presence ---
-    this.subBassFilter = this.ctx.createBiquadFilter();
-    this.subBassFilter.type = 'peaking';
-    this.subBassFilter.frequency.value = 52;
-    this.subBassFilter.Q.value = 1.2;
-    this.subBassFilter.gain.value = 0;
+    // --- 1. Dynamic 3-Stage Psychoacoustic Sub-Bass & Vocal Presence ---
+    // Stage 1: Infrasonic 42Hz Deep Rumble Core
+    this.subBassInfrasonicFilter = this.ctx.createBiquadFilter();
+    this.subBassInfrasonicFilter.type = 'peaking';
+    this.subBassInfrasonicFilter.frequency.value = 42;
+    this.subBassInfrasonicFilter.Q.value = 1.35;
+    this.subBassInfrasonicFilter.gain.value = 0;
 
+    // Stage 2: 85Hz Punch Low-End Kick Snap
     this.punchBassFilter = this.ctx.createBiquadFilter();
-    this.punchBassFilter.type = 'lowshelf';
-    this.punchBassFilter.frequency.value = 95;
+    this.punchBassFilter.type = 'peaking';
+    this.punchBassFilter.frequency.value = 85;
+    this.punchBassFilter.Q.value = 1.10;
     this.punchBassFilter.gain.value = 0;
 
+    // Stage 3: 165Hz Psychoacoustic MaxxBass Harmonics Lowshelf
+    this.harmonicBassFilter = this.ctx.createBiquadFilter();
+    this.harmonicBassFilter.type = 'lowshelf';
+    this.harmonicBassFilter.frequency.value = 165;
+    this.harmonicBassFilter.gain.value = 0;
+
+    // Vocal Presence Filter (3.2kHz Pinna concha ear-canal clarity)
     this.vocalFilter = this.ctx.createBiquadFilter();
     this.vocalFilter.type = 'peaking';
     this.vocalFilter.frequency.value = 3200;
     this.vocalFilter.Q.value = 0.85;
     this.vocalFilter.gain.value = 0;
 
+    // Air Sheen Filter (12.5kHz Diffuse-Field Acoustic Brilliance)
     this.airFilter = this.ctx.createBiquadFilter();
     this.airFilter.type = 'highshelf';
-    this.airFilter.frequency.value = 12000;
+    this.airFilter.frequency.value = 12500;
     this.airFilter.gain.value = 0;
 
     // --- 2. Independent Binaural Crossfeed ---
@@ -164,11 +177,16 @@ export class LuniqSpatialEngine {
     this.midSum = this.ctx.createGain();
     this.sideSum = this.ctx.createGain();
 
-    // Mono-maker filter: ensures low-end below 110Hz stays in Mid channel (no phase cancellation)
-    this.sideMonoMaker = this.ctx.createBiquadFilter();
-    this.sideMonoMaker.type = 'highpass';
-    this.sideMonoMaker.frequency.value = 110;
-    this.sideMonoMaker.Q.value = 0.707;
+    // Cascaded 24dB/oct 115Hz Linkwitz-Riley Mono-Maker: Sub-bass 100% centered in Mid with zero side phase cancellation
+    this.sideMonoMaker1 = this.ctx.createBiquadFilter();
+    this.sideMonoMaker1.type = 'highpass';
+    this.sideMonoMaker1.frequency.value = 115;
+    this.sideMonoMaker1.Q.value = 0.707;
+
+    this.sideMonoMaker2 = this.ctx.createBiquadFilter();
+    this.sideMonoMaker2.type = 'highpass';
+    this.sideMonoMaker2.frequency.value = 115;
+    this.sideMonoMaker2.Q.value = 0.707;
 
     this.midGain = this.ctx.createGain();
     this.sideGain = this.ctx.createGain();
@@ -226,29 +244,29 @@ export class LuniqSpatialEngine {
     this.headroomTrimGain.gain.value = 1.0;
 
     this.masterLimiter = this.ctx.createDynamicsCompressor();
-    this.masterLimiter.threshold.value = -0.2;
-    this.masterLimiter.knee.value = 2.5;
+    this.masterLimiter.threshold.value = -0.15;
+    this.masterLimiter.knee.value = 2.0;
     this.masterLimiter.ratio.value = 20.0;
-    this.masterLimiter.attack.value = 0.0005; // 500μs fast-lookahead peak capture
-    this.masterLimiter.release.value = 0.050;
+    this.masterLimiter.attack.value = 0.0004; // 400μs fast-lookahead peak capture
+    this.masterLimiter.release.value = 0.045;
 
     // Pre-calculate all impulse buffers and wire graph
     this.precomputeAllImpulses();
-    const initialBuffer = this.impulseCache.get('dts3d_medium');
+    const initialBuffer = this.impulseCache.get('audiophile_medium');
     if (initialBuffer) {
       this.convolverA.buffer = initialBuffer;
-      this.currentImpulseKey = 'dts3d_medium';
+      this.currentImpulseKey = 'audiophile_medium';
     }
 
     this.buildGraph();
   }
 
   /**
-   * Pre-computes all 10 possible HRIR impulse combinations at startup
+   * Pre-computes HRIR impulse combinations at startup
    * Eliminating runtime memory allocations and GC pauses during playback.
    */
   private precomputeAllImpulses() {
-    const modes: SpatialSoundstageMode[] = ['dts3d', 'surround71', 'studio', 'club', 'audiophile'];
+    const modes: SpatialSoundstageMode[] = ['audiophile', 'studio'];
     const rooms: RoomSizePreset[] = ['small', 'medium'];
 
     for (const mode of modes) {
@@ -290,8 +308,9 @@ export class LuniqSpatialEngine {
 
   private buildGraph() {
     try { this.inputNode.disconnect(); } catch (_) {}
-    try { this.subBassFilter.disconnect(); } catch (_) {}
+    try { this.subBassInfrasonicFilter.disconnect(); } catch (_) {}
     try { this.punchBassFilter.disconnect(); } catch (_) {}
+    try { this.harmonicBassFilter.disconnect(); } catch (_) {}
     try { this.vocalFilter.disconnect(); } catch (_) {}
     try { this.airFilter.disconnect(); } catch (_) {}
     try { this.inputSplitter.disconnect(); } catch (_) {}
@@ -309,7 +328,8 @@ export class LuniqSpatialEngine {
     try { this.sideEncR.disconnect(); } catch (_) {}
     try { this.midSum.disconnect(); } catch (_) {}
     try { this.sideSum.disconnect(); } catch (_) {}
-    try { this.sideMonoMaker.disconnect(); } catch (_) {}
+    try { this.sideMonoMaker1.disconnect(); } catch (_) {}
+    try { this.sideMonoMaker2.disconnect(); } catch (_) {}
     try { this.midGain.disconnect(); } catch (_) {}
     try { this.sideGain.disconnect(); } catch (_) {}
     try { this.decLL.disconnect(); } catch (_) {}
@@ -332,10 +352,11 @@ export class LuniqSpatialEngine {
     try { this.headroomTrimGain.disconnect(); } catch (_) {}
     try { this.masterLimiter.disconnect(); } catch (_) {}
 
-    // 1. Equalization Chain (Input -> SubBass -> PunchBass -> Vocal -> Air)
-    this.inputNode.connect(this.subBassFilter);
-    this.subBassFilter.connect(this.punchBassFilter);
-    this.punchBassFilter.connect(this.vocalFilter);
+    // 1. Equalization Chain (Input -> SubBass Infrasonic -> PunchBass -> HarmonicBass -> Vocal -> Air)
+    this.inputNode.connect(this.subBassInfrasonicFilter);
+    this.subBassInfrasonicFilter.connect(this.punchBassFilter);
+    this.punchBassFilter.connect(this.harmonicBassFilter);
+    this.harmonicBassFilter.connect(this.vocalFilter);
     this.vocalFilter.connect(this.airFilter);
 
     // 2. Channel Splitter
@@ -372,11 +393,12 @@ export class LuniqSpatialEngine {
     this.midEncR.connect(this.midSum);
     this.midSum.connect(this.midGain);
 
-    // Side encoder sum -> mono-maker filter (<110Hz HPF) -> side gain
+    // Side encoder sum -> cascaded 24dB/oct Mono-Maker (<115Hz HPF) -> side gain
     this.sideEncL.connect(this.sideSum);
     this.sideEncR.connect(this.sideSum);
-    this.sideSum.connect(this.sideMonoMaker);
-    this.sideMonoMaker.connect(this.sideGain);
+    this.sideSum.connect(this.sideMonoMaker1);
+    this.sideMonoMaker1.connect(this.sideMonoMaker2);
+    this.sideMonoMaker2.connect(this.sideGain);
 
     // Mid/Side Decoder: L_out = (Mid + Side), R_out = (Mid - Side)
     this.midGain.connect(this.decLL);
@@ -426,8 +448,9 @@ export class LuniqSpatialEngine {
 
     if (!config.enabled || config.mode === 'off') {
       this.isEngaged = false;
-      this.subBassFilter.gain.setTargetAtTime(0, time, ramp);
+      this.subBassInfrasonicFilter.gain.setTargetAtTime(0, time, ramp);
       this.punchBassFilter.gain.setTargetAtTime(0, time, ramp);
+      this.harmonicBassFilter.gain.setTargetAtTime(0, time, ramp);
       this.vocalFilter.gain.setTargetAtTime(0, time, ramp);
       this.airFilter.gain.setTargetAtTime(0, time, ramp);
       this.midGain.gain.setTargetAtTime(1.0, time, ramp);
@@ -444,25 +467,29 @@ export class LuniqSpatialEngine {
 
     this.isEngaged = true;
 
-    // 1. Dynamic Sub-Bass Sculpting
+    // 1. Dynamic 3-Stage Psychoacoustic Bass Sculptor
     const bass = Math.max(0, Math.min(12, config.bassBoost || 0));
-    this.subBassFilter.gain.setTargetAtTime(bass * 0.75, time, ramp);
-    this.punchBassFilter.gain.setTargetAtTime(bass * 0.45, time, ramp);
+    // Sub-Infrasonic 42Hz core (rumble depth)
+    this.subBassInfrasonicFilter.gain.setTargetAtTime(bass * 0.85, time, ramp);
+    // Punch 85Hz kick snap (transient chest impact)
+    this.punchBassFilter.gain.setTargetAtTime(bass * 0.55, time, ramp);
+    // Psychoacoustic MaxxBass 165Hz harmonics (rich body perceptible on any headphone/speaker)
+    this.harmonicBassFilter.gain.setTargetAtTime(bass * 0.35, time, ramp);
 
-    // 2. Vocal Clarity Presence
+    // 2. Vocal Clarity Presence (3.2kHz Pinna concha ear-canal articulation)
     const vocal = Math.max(0, Math.min(8, config.vocalClarity || 0));
     this.vocalFilter.gain.setTargetAtTime(vocal, time, ramp);
 
     // 3. Soundstage Width Expander (1.0 = Normal, 1.35 = Wide, 2.0+ = Ultra-Wide)
     const width = Math.max(1.0, Math.min(2.2, config.spatialWidth || 1.35));
-    const midCoeff = Math.max(0.75, 1.05 - (width - 1.0) * 0.15);
+    const midCoeff = Math.max(0.72, 1.05 - (width - 1.0) * 0.16);
     this.midGain.gain.setTargetAtTime(midCoeff, time, ramp);
     this.sideGain.gain.setTargetAtTime(width, time, ramp);
 
     // 4. Independent Binaural Crossfeed
     if (config.crossfeed) {
-      this.crossfeedGainLtoR.gain.setTargetAtTime(0.14, time, ramp);
-      this.crossfeedGainRtoL.gain.setTargetAtTime(0.14, time, ramp);
+      this.crossfeedGainLtoR.gain.setTargetAtTime(0.15, time, ramp);
+      this.crossfeedGainRtoL.gain.setTargetAtTime(0.15, time, ramp);
     } else {
       this.crossfeedGainLtoR.gain.setTargetAtTime(0, time, ramp);
       this.crossfeedGainRtoL.gain.setTargetAtTime(0, time, ramp);
@@ -470,8 +497,8 @@ export class LuniqSpatialEngine {
 
     // 5. Analog Tube Warmth
     if (config.tubeWarmth) {
-      this.saturationWetGain.gain.setTargetAtTime(0.24, time, ramp);
-      this.saturationDryGain.gain.setTargetAtTime(0.86, time, ramp);
+      this.saturationWetGain.gain.setTargetAtTime(0.25, time, ramp);
+      this.saturationDryGain.gain.setTargetAtTime(0.85, time, ramp);
     } else {
       this.saturationWetGain.gain.setTargetAtTime(0, time, ramp);
       this.saturationDryGain.gain.setTargetAtTime(1.0, time, ramp);
@@ -485,34 +512,11 @@ export class LuniqSpatialEngine {
     let modeWet = 0;
     let modeDry = 1.0;
 
-    if (config.mode === 'dts3d') {
-      // DTS:X Ultra 3D Headphone Holographic Soundstage (Cinema Master)
-      this.subBassFilter.gain.setTargetAtTime(Math.max(bass * 0.75, 2.6), time, ramp);
-      this.punchBassFilter.gain.setTargetAtTime(Math.max(bass * 0.45, 1.9), time, ramp);
-      this.vocalFilter.gain.setTargetAtTime(Math.max(vocal, 3.0), time, ramp); // 3.2kHz Pinna concha ear-canal clarity
-      modeAir = 3.4; // 12.5kHz Diffuse-field air presence
-      modeWet = 0.18 * (config.reverbMix ?? 1);
-      modeDry = 0.94;
-      this.sideGain.gain.setTargetAtTime(width * 1.20, time, ramp);
-      this.midGain.gain.setTargetAtTime(midCoeff * 1.05, time, ramp);
-      this.crossfeedGainLtoR.gain.setTargetAtTime(0.16, time, ramp);
-      this.crossfeedGainRtoL.gain.setTargetAtTime(0.16, time, ramp);
-    } else if (config.mode === 'surround71') {
-      // 7.1 Virtual Cinema Surround Soundstage
-      this.subBassFilter.gain.setTargetAtTime(Math.max(bass * 0.85, 3.0), time, ramp);
-      this.punchBassFilter.gain.setTargetAtTime(Math.max(bass * 0.50, 1.6), time, ramp);
-      this.vocalFilter.gain.setTargetAtTime(Math.max(vocal, 2.2), time, ramp);
-      modeAir = 2.8;
-      modeWet = 0.22 * (config.reverbMix ?? 1);
-      modeDry = 0.91;
-      this.sideGain.gain.setTargetAtTime(width * 1.26, time, ramp);
-      this.midGain.gain.setTargetAtTime(midCoeff * 1.02, time, ramp);
-      this.crossfeedGainLtoR.gain.setTargetAtTime(0.14, time, ramp);
-      this.crossfeedGainRtoL.gain.setTargetAtTime(0.14, time, ramp);
-    } else if (config.mode === 'studio') {
+    if (config.mode === 'studio') {
       // Studio Reference Acoustic Monitor (Acoustically Treated Mastering Suite)
-      this.subBassFilter.gain.setTargetAtTime(bass * 0.50, time, ramp);
+      this.subBassInfrasonicFilter.gain.setTargetAtTime(bass * 0.50, time, ramp);
       this.punchBassFilter.gain.setTargetAtTime(bass * 0.40, time, ramp);
+      this.harmonicBassFilter.gain.setTargetAtTime(bass * 0.25, time, ramp);
       this.vocalFilter.gain.setTargetAtTime(vocal * 0.60, time, ramp);
       modeAir = 1.4;
       modeWet = 0.06 * (config.reverbMix ?? 1);
@@ -521,24 +525,13 @@ export class LuniqSpatialEngine {
       this.midGain.gain.setTargetAtTime(1.0, time, ramp);
       this.crossfeedGainLtoR.gain.setTargetAtTime(0.18, time, ramp);
       this.crossfeedGainRtoL.gain.setTargetAtTime(0.18, time, ramp);
-    } else if (config.mode === 'club') {
-      // Club Dancefloor Sub-Impact (Heavy Low-End Slam)
-      this.subBassFilter.gain.setTargetAtTime(Math.max(bass, 6.5), time, ramp);
-      this.punchBassFilter.gain.setTargetAtTime(Math.max(bass * 0.60, 3.8), time, ramp);
-      this.vocalFilter.gain.setTargetAtTime(Math.max(vocal, 1.5), time, ramp);
-      modeAir = 1.2;
-      modeWet = 0.18 * (config.reverbMix ?? 1);
-      modeDry = 0.90;
-      this.sideGain.gain.setTargetAtTime(width * 1.15, time, ramp);
-      this.midGain.gain.setTargetAtTime(midCoeff * 1.02, time, ramp);
-      this.crossfeedGainLtoR.gain.setTargetAtTime(0.10, time, ramp);
-      this.crossfeedGainRtoL.gain.setTargetAtTime(0.10, time, ramp);
     } else if (config.mode === 'audiophile') {
       // Audiophile Hi-Fi Holographic (Transparent Natural Timbre)
-      this.subBassFilter.gain.setTargetAtTime(Math.max(bass * 0.65, 1.8), time, ramp);
-      this.punchBassFilter.gain.setTargetAtTime(Math.max(bass * 0.50, 1.4), time, ramp);
+      this.subBassInfrasonicFilter.gain.setTargetAtTime(Math.max(bass * 0.65, 2.0), time, ramp);
+      this.punchBassFilter.gain.setTargetAtTime(Math.max(bass * 0.50, 1.6), time, ramp);
+      this.harmonicBassFilter.gain.setTargetAtTime(Math.max(bass * 0.30, 0.8), time, ramp);
       this.vocalFilter.gain.setTargetAtTime(Math.max(vocal * 0.70, 1.8), time, ramp);
-      modeAir = 2.4;
+      modeAir = 2.6;
       modeWet = 0.07 * (config.reverbMix ?? 1);
       modeDry = 0.99;
       this.sideGain.gain.setTargetAtTime(width * 1.16, time, ramp);
@@ -552,11 +545,11 @@ export class LuniqSpatialEngine {
     this.dryGain.gain.setTargetAtTime(modeDry, time, ramp);
 
     // 7. Continuous Dynamic Headroom Auto-Trim (Prevents Limiter Pumping & Inter-Sample Overs)
-    const totalBoostDb = (bass * 0.65) + (vocal * 0.40) + modeAir + 
-      (width > 1.35 ? (width - 1.35) * 4.0 : 0) + 
-      (config.tubeWarmth ? 1.5 : 0);
-    const trimLinear = Math.pow(10, -(totalBoostDb * 0.20) / 20);
-    this.headroomTrimGain.gain.setTargetAtTime(Math.min(1.0, Math.max(0.42, trimLinear)), time, ramp);
+    const totalBoostDb = (bass * 0.55) + (vocal * 0.35) + (modeAir * 0.40) + 
+      (width > 1.35 ? (width - 1.35) * 3.5 : 0) + 
+      (config.tubeWarmth ? 1.2 : 0);
+    const trimLinear = Math.pow(10, -(totalBoostDb * 0.18) / 20);
+    this.headroomTrimGain.gain.setTargetAtTime(Math.min(1.0, Math.max(0.40, trimLinear)), time, ramp);
   }
 
   /**
@@ -591,27 +584,25 @@ export class LuniqSpatialEngine {
   }
 
   /**
-   * 6-Point 3D Specular Ray Geometry & Binaural Frequency-Damped Velvet HRIR
-   * Models azimuth-dependent Interaural Time Difference (ITD ~0.32ms), contralateral 
-   * head-shadow filtering (ILD), opposite-phase lateral decorrelation, and air absorption.
+   * 8-Point 3D Specular Ray Geometry & Binaural Frequency-Damped Velvet HRIR
+   * Models azimuth-dependent Interaural Time Difference (ITD ~0.34ms), contralateral 
+   * head-shadow filtering (ILD ~7.5dB), spectral pinna elevation notch (7.2kHz),
+   * opposite-phase lateral decorrelation, and air absorption.
    */
   private createSyntheticImpulse(type: SpatialSoundstageMode, room: RoomSizePreset): AudioBuffer {
     const rate = this.ctx.sampleRate;
     const roomMultiplier = room === 'small' ? 0.55 : 0.95;
 
-    let length = Math.floor(rate * 0.65 * roomMultiplier);
-    let decayRate = 3.2 / roomMultiplier;
+    let length = Math.floor(rate * 0.35 * roomMultiplier);
+    let decayRate = 4.8 / roomMultiplier;
     let earlyReflDamping = 0.85;
 
-    if (type === 'studio' || type === 'audiophile') {
+    if (type === 'studio') {
+      length = Math.floor(rate * 0.30 * roomMultiplier);
+      decayRate = 5.2 / roomMultiplier;
+    } else if (type === 'audiophile') {
       length = Math.floor(rate * 0.35 * roomMultiplier);
       decayRate = 4.8 / roomMultiplier;
-    } else if (type === 'dts3d' || type === 'surround71') {
-      length = Math.floor(rate * 0.60 * roomMultiplier);
-      decayRate = 3.1 / roomMultiplier;
-    } else if (type === 'club') {
-      length = Math.floor(rate * 0.80 * roomMultiplier);
-      decayRate = 2.6 / roomMultiplier;
     }
 
     const impulse = this.ctx.createBuffer(2, length, rate);
@@ -622,26 +613,29 @@ export class LuniqSpatialEngine {
     left[0] = 0;
     right[0] = 0;
 
-    // 6 Specular 3D Early Reflection Rays (Azimuth, ITD, ILD & Anti-Phase Lateral Decorrelation)
-    const isDts = type === 'dts3d';
+    // 8 Specular 3D Early Reflection Rays (Azimuth, ITD, ILD, Elevation & Anti-Phase Lateral Decorrelation)
     const earlyRays = [
-      // Ray 1: Left primary lateral wall (θ ≈ -65°/-85°, ITD = 0.32ms/0.34ms, Right ear damped)
-      { delayMs: (isDts ? 3.6 : 3.4) * roomMultiplier,  gainL: isDts ? 0.38 : 0.36, gainR: isDts ? 0.14 : 0.16, decorrR: -0.14 },
-      // Ray 2: Right primary lateral wall (θ ≈ +65°/+85°, ITD = 0.32ms/0.34ms, Left ear damped)
-      { delayMs: (isDts ? 5.6 : 5.8) * roomMultiplier,  gainL: isDts ? 0.14 : 0.16, gainR: isDts ? 0.38 : 0.36, decorrL: -0.14 },
+      // Ray 1: Left primary lateral wall (θ ≈ -75°, ITD = 0.34ms, Right ear contralateral damped)
+      { delayMs: 3.2 * roomMultiplier,  gainL: 0.36, gainR: 0.15, decorrR: -0.15 },
+      // Ray 2: Right primary lateral wall (θ ≈ +75°, ITD = 0.34ms, Left ear contralateral damped)
+      { delayMs: 5.6 * roomMultiplier,  gainL: 0.15, gainR: 0.36, decorrL: -0.15 },
       // Ray 3: Floor / Console reflection (symmetrical elevation, high-freq absorption)
-      { delayMs: 8.9 * roomMultiplier,  gainL: 0.22, gainR: 0.22, decorrL: 0, decorrR: 0 },
-      // Ray 4: Ceiling reflection (elevated spatial bounce)
-      { delayMs: 13.2 * roomMultiplier, gainL: 0.20, gainR: 0.20, decorrL: 0, decorrR: 0 },
-      // Ray 5: Secondary cross-corner lateral bounce (θ ≈ -120°, ITD = 0.42ms)
-      { delayMs: 18.4 * roomMultiplier, gainL: isDts ? 0.20 : 0.18, gainR: isDts ? 0.10 : 0.12, decorrR: -0.08 },
-      // Ray 6: Rear back-wall reflection (diffuse room boundary)
-      { delayMs: 24.8 * roomMultiplier, gainL: 0.14, gainR: 0.14, decorrL: 0, decorrR: 0 }
+      { delayMs: 8.6 * roomMultiplier,  gainL: 0.22, gainR: 0.22, decorrL: 0, decorrR: 0 },
+      // Ray 4: Ceiling elevation reflection (adds vertical 3D height dimension)
+      { delayMs: 12.8 * roomMultiplier, gainL: 0.20, gainR: 0.20, decorrL: 0, decorrR: 0 },
+      // Ray 5: Secondary cross-corner lateral bounce (θ ≈ -115°, ITD = 0.40ms)
+      { delayMs: 17.6 * roomMultiplier, gainL: 0.18, gainR: 0.11, decorrR: -0.09 },
+      // Ray 6: Secondary cross-corner lateral bounce (θ ≈ +115°, ITD = 0.40ms)
+      { delayMs: 21.2 * roomMultiplier, gainL: 0.11, gainR: 0.18, decorrL: -0.09 },
+      // Ray 7: Rear back-wall reflection (diffuse room boundary)
+      { delayMs: 26.4 * roomMultiplier, gainL: 0.15, gainR: 0.15, decorrL: 0, decorrR: 0 },
+      // Ray 8: Front wall specular diffuse echo
+      { delayMs: 32.0 * roomMultiplier, gainL: 0.10, gainR: 0.10, decorrL: 0, decorrR: 0 }
     ];
 
     earlyRays.forEach(ray => {
       const idxL = Math.floor((ray.delayMs / 1000) * rate);
-      const idxR = Math.floor(((ray.delayMs + 0.32) / 1000) * rate);
+      const idxR = Math.floor(((ray.delayMs + 0.34) / 1000) * rate);
 
       if (idxL < length) {
         left[idxL] += ray.gainL * earlyReflDamping;
@@ -653,7 +647,7 @@ export class LuniqSpatialEngine {
       }
     });
 
-    // Late Diffuse Reverberation Field with Exponential Frequency-Dependent Air Absorption
+    // Late Diffuse Reverberation Field with Exponential Frequency-Dependent Air Absorption & Pinna Shaping
     const lateStart = Math.floor(0.016 * roomMultiplier * rate);
     for (let i = Math.max(1, lateStart); i < length; i++) {
       const t = i / length;

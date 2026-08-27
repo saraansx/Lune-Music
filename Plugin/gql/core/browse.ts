@@ -214,7 +214,7 @@ class SpotifyBrowseEndpoint {
         limit = 20,
     }: {
         timeZone: string;
-        spTCookie: string;
+        spTCookie?: string;
         limit?: number;
     }): Promise<BrowseSectionItem[]> {
         const hash = await getHash("Browse", "home");
@@ -225,7 +225,7 @@ class SpotifyBrowseEndpoint {
                     variables: {
                         homeEndUserIntegration: "INTEGRATION_WEB_PLAYER",
                         timeZone,
-                        sp_t: spTCookie,
+                        sp_t: spTCookie || "",
                         facet: "",
                         includeEpisodeContentRatingsV2: true,
                         sectionItemsLimit: limit,
@@ -272,7 +272,7 @@ class SpotifyBrowseEndpoint {
             offset = 0,
         }: {
             timeZone: string;
-            spTCookie: string;
+            spTCookie?: string;
             limit?: number;
             offset?: number;
         }
@@ -286,7 +286,7 @@ class SpotifyBrowseEndpoint {
                         uri: `spotify:section:${id}`,
                         homeEndUserIntegration: "INTEGRATION_WEB_PLAYER",
                         timeZone,
-                        sp_t: spTCookie,
+                        sp_t: spTCookie || "",
                         facet: "",
                         includeEpisodeContentRatingsV2: true,
                         sectionItemsOffset: offset,

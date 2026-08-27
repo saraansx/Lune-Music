@@ -1,0 +1,90 @@
+/* ── Base Luniq Shimmer Skeleton ── */
+.luniq-skeleton {
+    background: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.03) 0%,
+        rgba(255, 255, 255, 0.08) 50%,
+        rgba(255, 255, 255, 0.03) 100%
+    );
+    background-size: 200% 100%;
+    animation: skeletonShimmer 1.8s ease-in-out infinite;
+    pointer-events: none;
+    user-select: none;
+}
+
+@keyframes skeletonShimmer {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.skeleton-page-container {
+    opacity: 0.9;
+    animation: skeletonFadeIn 0.25s ease forwards;
+}
+
+@keyframes skeletonFadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 0.9; transform: translateY(0); }
+}
+
+/* Home Skeleton Layouts */
+.skeleton-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 20px;
+    width: 100%;
+}
+
+.skeleton-cards-grid.six-pack {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+}
+
+.skeleton-card.horizontal {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 10px;
+    padding: 8px;
+}
+
+.skeleton-card.vertical {
+    display: flex;
+    flex-direction: column;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    padding: 12px;
+}
+
+.skeleton-section-header {
+    margin-bottom: 16px;
+}
+
+/* Playlist Skeleton Layouts */
+.skeleton-playlist-header {
+    display: flex;
+    gap: 28px;
+    align-items: flex-end;
+    padding: 24px 32px 0 32px;
+}
+
+.skeleton-playlist-meta {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.skeleton-track-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 32px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+}

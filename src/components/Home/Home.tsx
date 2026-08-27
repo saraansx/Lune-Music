@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo } from 'react';
 import './Home.css';
 import { useApi } from '../../context/ApiContext';
 import type { BrowseSectionItem } from '../../../Plugin/gql/types/gql-api';
+import { HomeSkeleton } from '../Skeleton/Skeleton';
 
 interface PlatformCookie {
     domain: string;
@@ -75,15 +76,7 @@ const Home = ({ accessToken, cookies, onPlaylistSelect, onTrackViewSelect, onArt
     const fetchHomeData = async () => {
         try {
             setLoading(true);
-            if (!cookies || !Array.isArray(cookies)) {
-                throw new Error('No session cookies found. Please re-login.');
-            }
-
-            const spT = cookies.find(c => c.name === 'sp_t')?.value;
-
-            if (!spT) {
-                throw new Error('Spotify "sp_t" cookie not found. Please try logging in again.');
-            }
+            const spT = Array.isArray(cookies) ? cookies.find(c => c.name === 'sp_t')?.value : undefined;
 
             const data = await api.browse.home({
                 timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -110,8 +103,7 @@ const Home = ({ accessToken, cookies, onPlaylistSelect, onTrackViewSelect, onArt
             setLoading(true);
             setActiveSection({ id: section.id, title: section.title });
 
-            const spT = cookies?.find(c => c.name === 'sp_t')?.value;
-            if (!spT) throw new Error('No sp_t cookie');
+            const spT = Array.isArray(cookies) ? cookies.find(c => c.name === 'sp_t')?.value : undefined;
 
             const data = await api.browse.homeSection(section.id, {
                 timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -294,6 +286,10 @@ const Home = ({ accessToken, cookies, onPlaylistSelect, onTrackViewSelect, onArt
 
 
     
+    if (loading) {
+        return <HomeSkeleton />;
+    }
+
     if (activeSection) {
         return (
             <div className="home-container">

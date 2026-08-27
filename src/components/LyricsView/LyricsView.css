@@ -181,54 +181,56 @@
 }
 
 .lyric-line {
-    font-size: 1.85rem;
-    font-weight: 600;
-    line-height: 1.6;
-    padding: 14px 28px;
+    font-size: 2.05rem;
+    font-weight: 700;
+    line-height: 1.5;
+    padding: 10px 24px;
     border-radius: 16px;
     transition: 
-        color 0.45s cubic-bezier(0.16, 1, 0.3, 1),
-        transform 0.5s cubic-bezier(0.16, 1, 0.3, 1),
-        opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1),
-        filter 0.45s cubic-bezier(0.16, 1, 0.3, 1),
-        text-shadow 0.45s cubic-bezier(0.16, 1, 0.3, 1),
-        background 0.3s ease;
-    color: rgba(255, 255, 255, 0.28);
+        color 0.35s cubic-bezier(0.2, 0, 0, 1),
+        transform 0.4s cubic-bezier(0.2, 0, 0, 1),
+        opacity 0.35s cubic-bezier(0.2, 0, 0, 1),
+        filter 0.35s cubic-bezier(0.2, 0, 0, 1);
+    color: rgba(255, 255, 255, 0.22);
     cursor: pointer;
     text-align: center;
     transform-origin: center center;
-    opacity: 0.65;
-    filter: blur(0.6px);
+    opacity: 0.5;
+    filter: blur(1px);
     will-change: transform, color, filter, opacity;
+    letter-spacing: -0.015em;
 }
 
 .lyric-line.active {
     color: #ffffff;
-    transform: scale(1.08) translateY(-2px);
+    transform: scale(1.06) translateY(-2px);
     opacity: 1;
     filter: blur(0px);
-    text-shadow: 0 4px 24px rgba(255, 255, 255, 0.35), 0 0 40px rgba(var(--accent-rgb), 0.3);
-    font-weight: 800;
+    font-weight: 850;
+    text-shadow: 0 2px 14px rgba(0, 0, 0, 0.7);
 }
 
 .lyric-line:hover {
-    color: rgba(255, 255, 255, 0.85);
-    opacity: 0.95;
+    color: rgba(255, 255, 255, 0.75);
+    opacity: 0.85;
     filter: blur(0px);
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(255, 255, 255, 0.02);
 }
 
 .lyric-romanized-text {
-    font-size: 1.25rem;
+    font-size: 1.18rem;
     font-weight: 550;
     margin-top: 6px;
-    color: rgba(255, 255, 255, 0.35);
-    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    letter-spacing: 0.01em;
+    color: rgba(255, 255, 255, 0.25);
+    transition: all 0.35s cubic-bezier(0.2, 0, 0, 1);
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
 .lyric-line.active .lyric-romanized-text {
-    color: rgba(255, 255, 255, 0.88);
-    text-shadow: 0 0 16px rgba(255, 255, 255, 0.25);
+    color: rgba(255, 255, 255, 0.78);
+    font-weight: 650;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
 }
 
 .lyric-words-wrap {
@@ -236,38 +238,33 @@
     flex-wrap: wrap;
     justify-content: center;
     column-gap: 8px;
-    row-gap: 2px;
+    row-gap: 4px;
 }
 
 .lyric-word {
     display: inline-block;
-    color: rgba(255, 255, 255, 0.32);
+    color: rgba(255, 255, 255, 0.25);
     transition: 
-        color 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-        transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
-        text-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-        opacity 0.22s ease,
-        filter 0.22s ease;
-    will-change: transform, color, text-shadow;
+        color 0.18s cubic-bezier(0.2, 0, 0, 1),
+        transform 0.22s cubic-bezier(0.2, 0, 0, 1),
+        opacity 0.18s ease;
+    will-change: transform, color;
 }
 
 .lyric-line.active .lyric-word {
-    color: rgba(255, 255, 255, 0.45);
+    color: rgba(255, 255, 255, 0.42);
 }
 
 .lyric-line.active .lyric-word.sung {
     color: #ffffff;
     opacity: 1;
-    text-shadow: 0 2px 14px rgba(255, 255, 255, 0.4);
+    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
 }
 
 .lyric-line.active .lyric-word.current {
     color: #ffffff;
-    transform: scale(1.08) translateY(-1px);
-    text-shadow: 
-        0 0 20px rgba(255, 255, 255, 0.8),
-        0 0 35px rgba(var(--accent-rgb), 0.65),
-        0 4px 12px rgba(0, 0, 0, 0.5);
+    transform: scale(1.05) translateY(-1px);
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
     font-weight: 850;
 }
 

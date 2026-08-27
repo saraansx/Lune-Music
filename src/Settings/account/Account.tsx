@@ -60,7 +60,16 @@ const Account: React.FC<AccountProps> = ({ accessToken, cookies }) => {
             
             <div className="account-content">
                 {loading ? (
-                    <div className="account-loading">{t('settings.loadingProfile')}</div>
+                    <div className="account-profile-section" style={{ pointerEvents: 'none' }}>
+                        <div className="account-profile-info">
+                            <div className="luniq-skeleton" style={{ width: '40px', height: '40px', borderRadius: '50%' }} />
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                <div className="luniq-skeleton" style={{ width: '120px', height: '15px', borderRadius: '4px' }} />
+                                <div className="luniq-skeleton" style={{ width: '150px', height: '11px', borderRadius: '3px' }} />
+                            </div>
+                        </div>
+                        <div className="luniq-skeleton" style={{ width: '76px', height: '32px', borderRadius: '8px' }} />
+                    </div>
                 ) : isGuest ? (
                     <>
                         <div className="account-profile-section">

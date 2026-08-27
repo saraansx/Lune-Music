@@ -9,6 +9,7 @@ import ShuffleIcon from '../Icons/ShuffleIcon';
 import ShuffleButton from '../Shuffle/ShuffleButton';
 import { DownloadIndicator } from '../DownloadIndicator/DownloadIndicator';
 import PreviewCarousel from './PreviewCarousel';
+import { PlaylistSkeleton } from '../Skeleton/Skeleton';
 
 import { formatDuration } from '../../utils/format';
 
@@ -697,16 +698,7 @@ const Playlist: React.FC<PlaylistProps> = ({ accessToken, cookies: _cookies, pla
     }, [tracks]);
 
     if (loading) {
-        return (
-            <div className="luniq-loading-container" style={{ background: 'linear-gradient(to bottom, rgba(135, 61, 118, 0.03) 0%, transparent 100%)' }}>
-                <div className="luniq-loading-animation" style={{ transform: 'scale(1.5)' }}>
-                    <div className="bar bar1"></div>
-                    <div className="bar bar2"></div>
-                    <div className="bar bar3"></div>
-                </div>
-                <span style={{ marginTop: '24px', fontWeight: 500, letterSpacing: '0.5px', opacity: 0.6 }}>{t('playlist.loadingPlaylist')}</span>
-            </div>
-        );
+        return <PlaylistSkeleton />;
     }
 
     if (error || !playlist) {

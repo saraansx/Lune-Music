@@ -150,11 +150,8 @@ export class AudioCacheManager {
                 write: (chunk: Uint8Array | Buffer) => {
                     if (!this.activeWriters.has(trackId)) return;
                     try {
-                        const ok = writeStream.write(chunk);
+                        writeStream.write(chunk);
                         writerEntry.bytesWritten += chunk.length;
-                        if (!ok) {
-                            writeStream.once('drain', () => {});
-                        }
                     } catch (e) {
                         this.abortWriter(trackId);
                     }

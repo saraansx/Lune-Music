@@ -12,4 +12,13 @@ spotify_hashes_summary.txt
 # Agent and Session Files
 AGENTS.md
 WORKLOG.md
-.agents/
+.agents/
+
+# IDE & Editor Files
+.vscode/
+.idea/
+*.suo
+*.user
+
+# Project-Internal / Non-Release Folders
+Carosule/

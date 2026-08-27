@@ -1,66 +1,58 @@
-.about-card {
-    position: relative;
-    z-index: var(--z-base, 1);
-}
-
-.about-switch {
-    position: relative;
-    display: inline-block;
-    width: 48px;
-    height: 26px;
+.updates-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent, #0077f9);
+    color: #ffffff;
+    border: none;
+    padding: 7px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
     cursor: pointer;
-    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(var(--accent-rgb, 0, 119, 249), 0.3);
+    white-space: nowrap;
+    user-select: none;
+    flex-shrink: 0;
 }
 
-.about-switch:hover {
-    transform: scale(1.05);
+.updates-action-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(var(--accent-rgb, 0, 119, 249), 0.45);
+    filter: brightness(1.08);
 }
 
-.about-switch:active {
-    transform: scale(0.95);
+.updates-action-btn:active:not(:disabled) {
+    transform: translateY(0);
 }
 
-.about-switch input {
-    opacity: 0;
-    width: 0;
-    height: 0;
+.updates-action-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-dim, #8892a4);
+    box-shadow: none;
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.about-switch-slider {
-    position: absolute;
-    cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(var(--text-main-rgb), 0.1);
-    transition: .4s cubic-bezier(0.4, 0, 0.2, 1);
-    border-radius: 30px;
-    border: 1px solid rgba(var(--text-main-rgb), 0.05);
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+.updates-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 9px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    color: var(--text-dim, #8892a4);
+    font-size: 11px;
+    font-weight: 500;
+    user-select: none;
 }
 
-.about-switch-slider:before {
-    position: absolute;
-    content: "";
-    height: 18px;
-    width: 18px;
-    left: 4px;
-    bottom: 4px;
-    background-color: #ffffff;
-    transition: .4s cubic-bezier(0.34, 1.56, 0.64, 1);
+.updates-status-badge .status-dot {
+    width: 5px;
+    height: 5px;
+    background: #22c55e;
     border-radius: 50%;
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
-}
-
-.about-switch input:checked + .about-switch-slider {
-    background-color: var(--accent, #0077f9);
-    border-color: rgba(var(--accent-rgb), 0.3);
-    box-shadow: 0 0 15px rgba(var(--accent-rgb), 0.3), inset 0 1px 2px rgba(255, 255, 255, 0.2);
-}
-
-.about-switch input:checked + .about-switch-slider:before {
-    transform: translateX(20px);
-    background-color: #ffffff;
-    box-shadow: -2px 3px 6px rgba(0, 0, 0, 0.2);
 }

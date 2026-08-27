@@ -1,23 +1,30 @@
 .settings-language-card {
-    padding: 24px 0;
-    margin-bottom: 24px;
+    padding: 20px 0;
+    margin-bottom: 20px;
 }
 
 .language-content {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    background: rgba(255, 255, 255, 0.025);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    overflow: visible;
 }
 
 .settings-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: rgba(var(--text-main-rgb), 0.015);
-    padding: 14px 16px;
-    border-radius: 12px;
-    border: 1px solid rgba(var(--text-main-rgb), 0.025);
-    transition: background 0.2s ease;
+    padding: 14px 18px;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    transition: background 0.15s ease;
+}
+
+.settings-row:last-child {
+    border-bottom: none;
 }
 
 .row-info {
@@ -202,18 +209,10 @@
 .luniq-switch {
     position: relative;
     display: inline-block;
-    width: 48px;
-    height: 26px;
+    width: 44px;
+    height: 24px;
     cursor: pointer;
-    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.luniq-switch:hover {
-    transform: scale(1.05);
-}
-
-.luniq-switch:active {
-    transform: scale(0.95);
+    transition: opacity 0.15s ease;
 }
 
 .luniq-switch input {
@@ -229,40 +228,37 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(var(--text-main-rgb), 0.1);
-    transition: .4s cubic-bezier(0.4, 0, 0.2, 1);
+    background-color: rgba(255, 255, 255, 0.1);
+    transition: background-color 0.2s ease;
     border-radius: 30px;
-    border: 1px solid rgba(var(--text-main-rgb), 0.05);
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .luniq-switch-slider:before {
     position: absolute;
     content: "";
-    height: 18px;
-    width: 18px;
-    left: 4px;
-    bottom: 4px;
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    bottom: 3px;
     background-color: #ffffff;
-    transition: .4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     border-radius: 50%;
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 input:checked + .luniq-switch-slider {
     background-color: var(--accent, #0077f9);
-    border-color: rgba(var(--accent-rgb), 0.3);
-    box-shadow: 0 0 15px rgba(var(--accent-rgb), 0.3), inset 0 1px 2px rgba(255, 255, 255, 0.2);
+    border-color: var(--accent, #0077f9);
 }
 
 input:checked + .luniq-switch-slider:before {
     transform: translateX(20px);
     background-color: #ffffff;
-    box-shadow: -2px 3px 6px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 .settings-row:hover {
-    background: rgba(var(--text-main-rgb), 0.035);
-    border-color: rgba(var(--text-main-rgb), 0.06);
+    background: rgba(255, 255, 255, 0.02);
 }
 

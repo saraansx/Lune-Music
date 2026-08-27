@@ -1,129 +1,182 @@
 .settings-container {
-    padding: 32px 48px;
     height: 100%;
-    overflow-y: auto;
     width: 100%;
-    color: var(--text-main);
-    perspective: 1000px;
-    transform-origin: top right;
-    will-change: transform, opacity, filter;
+    overflow: hidden;
+    color: var(--text-main, #f0f0f2);
 }
 
 .settings-container.settings-opening {
-    animation: settingsEnter 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: settingsEnter 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .settings-container.settings-closing {
-    animation: settingsExit 0.32s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    animation: settingsExit 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
     pointer-events: none;
 }
 
-@keyframes settingsEnter {
-    0% {
-        opacity: 0;
-        transform: translateY(-16px) scale(0.97) rotateX(4deg);
-        filter: blur(8px);
-    }
-    100% {
-        opacity: 1;
-        transform: translateY(0) scale(1) rotateX(0deg);
-        filter: blur(0px);
-    }
-}
-
-@keyframes settingsExit {
-    0% {
-        opacity: 1;
-        transform: translateY(0) scale(1) rotateX(0deg);
-        filter: blur(0px);
-    }
-    100% {
-        opacity: 0;
-        transform: translateY(-16px) scale(0.96) rotateX(4deg);
-        filter: blur(8px);
-    }
-}
-
-.settings-content {
-    max-width: 900px;
-    margin: 0 auto;
+.settings-layout {
+    display: flex;
+    height: 100%;
     width: 100%;
+    position: relative;
 }
 
-.settings-header {
-    margin-bottom: 28px;
+/* Sidebar Navigation */
+.settings-sidebar {
+    width: 210px;
+    flex-shrink: 0;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.015);
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    flex-direction: column;
+    padding: 24px 14px;
+    transition: width 0.22s cubic-bezier(0.2, 0, 0, 1), padding 0.22s cubic-bezier(0.2, 0, 0, 1);
+    overflow: hidden;
 }
 
-.settings-header h1 {
-    font-size: 1.8rem;
-    font-weight: 800;
-    margin-bottom: 6px;
-    letter-spacing: -0.02em;
+/* Collapsed Icon-Rail Mode */
+.settings-layout.sidebar-collapsed .settings-sidebar {
+    width: 58px;
+    padding: 24px 8px;
+    align-items: center;
 }
 
-.settings-header-sub {
-    font-size: 0.9rem;
-    color: var(--text-dim);
+.settings-sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     margin-bottom: 20px;
-    opacity: 0.8;
-}
-
-.settings-nav-tabs {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 6px;
-    background: rgba(255, 255, 255, 0.03);
-    padding: 6px;
-    border-radius: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(20px);
+    padding: 0 4px;
     width: 100%;
+    height: 28px;
 }
 
-.settings-nav-tab {
+.settings-layout.sidebar-collapsed .settings-sidebar-header {
+    justify-content: center;
+    padding: 0;
+}
+
+.sidebar-brand-text h2 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-main, #f0f0f2);
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+
+.sidebar-toggle-btn {
+    width: 28px;
+    height: 28px;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    padding: 10px 12px;
     background: transparent;
     border: 1px solid transparent;
-    border-radius: 10px;
-    color: var(--text-dim);
-    font-size: 0.85rem;
-    font-weight: 550;
+    border-radius: 6px;
+    color: var(--text-dim, #8892a4);
     cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.sidebar-toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-main, #f0f0f2);
+}
+
+.settings-sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
     width: 100%;
 }
 
-.settings-nav-tab .tab-icon {
+.settings-sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    color: var(--text-dim, #8892a4);
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s ease;
+    user-select: none;
+    width: 100%;
+}
+
+.settings-layout.sidebar-collapsed .settings-sidebar-item {
+    justify-content: center;
+    padding: 8px;
+    width: 38px;
+    height: 38px;
+    margin: 0 auto;
+}
+
+.settings-sidebar-item .tab-icon {
     display: flex;
     align-items: center;
     justify-content: center;
     opacity: 0.7;
-    transition: opacity 0.2s ease, transform 0.2s ease;
+    flex-shrink: 0;
 }
 
-.settings-nav-tab:hover {
-    color: var(--text-main);
-    background: rgba(255, 255, 255, 0.05);
+.settings-sidebar-item:hover {
+    color: var(--text-main, #f0f0f2);
+    background: rgba(255, 255, 255, 0.04);
 }
 
-.settings-nav-tab:hover .tab-icon {
+.settings-sidebar-item.active {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.08);
+    color: var(--text-main, #ffffff);
+    font-weight: 600;
+}
+
+.settings-sidebar-item.active .tab-icon {
     opacity: 1;
-    transform: translateY(-1px);
+    color: var(--accent, #0077f9);
 }
 
-.settings-nav-tab.active {
-    background: rgba(var(--accent-rgb), 0.15);
-    color: #fff;
-    border-color: rgba(var(--accent-rgb), 0.3);
-    box-shadow: 0 4px 14px rgba(var(--accent-rgb), 0.2);
+/* Main Scroll Area */
+.settings-main-scroll {
+    flex: 1;
+    height: 100%;
+    overflow-y: auto;
+    padding: 32px 48px;
 }
 
-.settings-nav-tab.active .tab-icon {
-    opacity: 1;
-    color: var(--accent-main);
+.settings-main-content {
+    max-width: 780px;
+    margin: 0 auto;
+    width: 100%;
+    padding-bottom: 80px;
+}
+
+@keyframes settingsEnter {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes settingsExit {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
 }

@@ -40,11 +40,15 @@ const LyricsView: React.FC = () => {
             setLyrics([]);
             setIsSynced(false);
             
+            const artist = Array.isArray(currentTrack.artists)
+                ? currentTrack.artists.map((a: any) => typeof a === 'string' ? a : (a.name || '')).join(', ')
+                : currentTrack.artist || '';
+
             const data = await fetchLyrics(
                 currentTrack.name, 
-                currentTrack.artist, 
+                artist, 
                 currentTrack.durationMs ? currentTrack.durationMs / 1000 : undefined,
-                undefined,
+                currentTrack.albumName,
                 currentTrack.id
             );
 

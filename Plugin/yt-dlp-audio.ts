@@ -62,29 +62,35 @@ export class YtDlpAudio {
     }
 
         private static readonly PLAYER_CLIENTS = [
+        'web_remix',
+        'web',
+        'web_creator',
         'android',
         'android_creator',
-        'web_creator',
         'mweb,default',
-        'web,default',
     ];
 
-    private getYouTubeOptions(quality: string | undefined, formatExt: string | undefined, extra: Record<string, any> = {}, playerClient = 'android'): Record<string, any> {
-        
-        
-        
-        let formatStr = 'bestaudio[ext=webm][acodec*=opus]/bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio/best';
+    private getYouTubeOptions(quality: string | undefined, formatExt: string | undefined, extra: Record<string, any> = {}, playerClient = 'web_remix'): Record<string, any> {
+        // Audiophile format chain: 
+        // 1. Opus @ 48kHz (itag 251 @ ~160kbps VBR - highest dynamic range & detail)
+        // 2. Opus in WebM container
+        // 3. AAC / M4A (itag 140 @ 128-256kbps)
+        let formatStr = 'bestaudio[acodec*=opus][asr>=48000]/bestaudio[ext=webm][acodec*=opus]/bestaudio[ext=m4a]/bestaudio/best';
         let extFilter = '';
         
         if (formatExt === 'mp4' || formatExt === 'm4a') extFilter = '[ext=m4a]';
         else if (formatExt === 'webm') extFilter = '[ext=webm]';
 
-        if (quality) {
-            
+        if (quality && quality !== 'default') {
             const q = parseInt(quality, 10);
-            formatStr = `bestaudio${extFilter}[abr<=${q}]/bestaudio${extFilter}/bestaudio/best`;
+            if (q <= 128) {
+                formatStr = `bestaudio${extFilter}[abr<=${q}]/bestaudio${extFilter}/bestaudio/best`;
+            } else {
+                // When high quality is selected (256/320k), do not throttle Opus 160k which is perceptually equal or superior
+                formatStr = `bestaudio${extFilter}[acodec*=opus][asr>=48000]/bestaudio${extFilter}[ext=webm][acodec*=opus]/bestaudio${extFilter}[ext=m4a]/bestaudio${extFilter}/bestaudio/best`;
+            }
         } else if (extFilter) {
-            formatStr = `bestaudio${extFilter}/bestaudio/best`;
+            formatStr = `bestaudio${extFilter}[acodec*=opus]/bestaudio${extFilter}/bestaudio/best`;
         }
 
         const opts: Record<string, any> = {

@@ -38,6 +38,22 @@ const proxyServer = http.createServer((req, res) => {
   }
 
   const queryParams = new URLSearchParams(reqUrl.slice(queryIndex));
+  const localFilePathHex = queryParams.get('localPath');
+  if (localFilePathHex) {
+    try {
+      const localFilePath = Buffer.from(localFilePathHex, 'hex').toString();
+      if (fs.existsSync(localFilePath)) {
+        const ext = path.extname(localFilePath).toLowerCase();
+        const mimeTypes: Record<string, string> = {
+          '.webm': 'audio/webm', '.m4a': 'audio/mp4', '.mp4': 'audio/mp4',
+          '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.flac': 'audio/flac', '.wav': 'audio/wav'
+        };
+        audioCacheManager.serveLocalFile(localFilePath, req, res, mimeTypes[ext] || 'audio/mp4');
+        return;
+      }
+    } catch (e) {}
+  }
+
   const cachedTrackId = queryParams.get('cachedId');
 
   // Check if serving from local audio cache directly
@@ -127,6 +143,8 @@ const proxyServer = http.createServer((req, res) => {
         'Content-Type': mimeType,
         'Accept-Ranges': 'bytes',
         'Access-Control-Allow-Origin': '*',
+        'Connection': 'keep-alive',
+        'Cache-Control': 'no-cache',
       };
 
       const cLength = targetRes.headers.get('content-length');
@@ -146,31 +164,48 @@ const proxyServer = http.createServer((req, res) => {
 
       if (targetRes.body) {
         const reader = targetRes.body.getReader();
+        let isClosed = false;
+
+        req.on('close', () => {
+          isClosed = true;
+          reader.cancel().catch(() => {});
+        });
+
         const pump = async () => {
+          if (isClosed) {
+            cacheWriter?.abort();
+            return;
+          }
           const { done, value } = await reader.read();
           if (done) {
             cacheWriter?.commit();
-            res.end();
+            if (!res.writableEnded) res.end();
             return;
           }
           if (value) {
             cacheWriter?.write(value);
-            res.write(value);
+            if (!res.writableEnded) {
+              const canContinue = res.write(value);
+              if (!canContinue) {
+                res.once('drain', pump);
+                return;
+              }
+            }
           }
           await pump();
         };
         pump().catch((err) => {
-          if (err.name === 'AbortError' || err.message?.includes('aborted')) {
+          if (err.name === 'AbortError' || err.message?.includes('aborted') || isClosed) {
             cacheWriter?.abort();
             return;
           }
           console.error('[Proxy] Stream piping error:', err);
           cacheWriter?.abort();
-          res.end();
+          if (!res.writableEnded) res.end();
         });
       } else {
         cacheWriter?.abort();
-        res.end();
+        if (!res.writableEnded) res.end();
       }
     })
     .catch((err) => {
@@ -179,9 +214,12 @@ const proxyServer = http.createServer((req, res) => {
       if (!res.headersSent) {
         res.writeHead(500);
       }
-      res.end();
+      if (!res.writableEnded) res.end();
     });
 });
+
+proxyServer.keepAliveTimeout = 65000;
+proxyServer.headersTimeout = 66000;
 
 proxyServer.listen(0, '127.0.0.1', () => {
   const addr = proxyServer.address();
@@ -356,7 +394,9 @@ export function registerStreamingHandlers() {
             if (local && local.localPath) {
               try {
                 await fs.promises.access(local.localPath);
-                return `luniq-local://f/${Buffer.from(local.localPath).toString("hex")}`;
+                const hex = Buffer.from(local.localPath).toString("hex");
+                console.log(`[Stream] 💾 Playing downloaded offline track: "${trackName}" (${local.localPath})`);
+                return `http://127.0.0.1:${proxyPort}/stream?localPath=${hex}`;
               } catch (e) {}
             }
           }

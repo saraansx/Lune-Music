@@ -101,8 +101,12 @@ const PlayerBar: React.FC<{
     try {
       console.log("[Audio] Initializing persistent Web Audio API graph...");
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      const audioCtx = (window as any).__luniqAudioCtx || new AudioCtx();
-      (window as any).__luniqAudioCtx = audioCtx;
+      let audioCtx = (window as any).__luniqAudioCtx;
+      if (!audioCtx || audioCtx.state === 'closed') {
+        audioCtx = new AudioCtx();
+        (window as any).__luniqAudioCtx = audioCtx;
+        (audioRef.current as any).__mediaSourceNode = null;
+      }
       audioCtxRef.current = audioCtx;
 
       if (audioDeviceId && audioDeviceId !== "default" && (audioCtx as any).setSinkId) {
@@ -209,6 +213,32 @@ const PlayerBar: React.FC<{
       });
     }
   }, [spatialAudioEnabled, spatialAudioMode, spatialWidth, spatialRoomSize, spatialBassBoost, spatialVocalClarity, spatialTubeWarmth]);
+
+  // Accurate Real-Time Listening Time Heartbeat (Flushes real played seconds to SQLite every 5s)
+  useEffect(() => {
+    if (!isPlaying || !currentTrack) return;
+
+    let accumulatedSeconds = 0;
+    const interval = setInterval(() => {
+      accumulatedSeconds += 5;
+      if (window.ipcRenderer && currentTrack?.id) {
+        const artist = Array.isArray(currentTrack.artists)
+          ? currentTrack.artists.map((a: any) => typeof a === 'string' ? a : (a.name || '')).join(', ')
+          : currentTrack.artist || 'Unknown Artist';
+
+        window.ipcRenderer.invoke('record-listening-time', {
+          trackId: currentTrack.id,
+          trackName: currentTrack.name,
+          artist: artist,
+          seconds: 5
+        }).catch(() => {});
+      }
+    }, 5000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [isPlaying, currentTrack?.id]);
 
   // Mono/Stereo audio toggle
   useEffect(() => {
@@ -587,9 +617,20 @@ const PlayerBar: React.FC<{
   };
 
   
+  // Hardware-accelerated smooth volume control (GainNode driven to prevent MediaElement decoder stutter)
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = isMuted ? 0 : volume;
+    // Keep raw HTML audio element at unity gain so Chromium decoder does not re-quantize buffers
+    if (audioRef.current && audioRef.current.volume !== 1.0) {
+      audioRef.current.volume = 1.0;
+    }
+    const targetVolume = isMuted ? 0 : Math.max(0, Math.min(1, volume));
+    if (gainNodeRef.current && audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+      try {
+        const time = audioCtxRef.current.currentTime;
+        gainNodeRef.current.gain.cancelScheduledValues(time);
+        gainNodeRef.current.gain.setValueAtTime(gainNodeRef.current.gain.value, time);
+        gainNodeRef.current.gain.linearRampToValueAtTime(targetVolume, time + 0.02);
+      } catch (_) {}
     }
   }, [volume, isMuted]);
 
@@ -830,7 +871,6 @@ const PlayerBar: React.FC<{
 
     
     if (audioRef.current) {
-      audioRef.current.volume = isMuted ? 0 : volume;
       audioRef.current.playbackRate = playbackSpeed; 
 
       if (streamUrl) {
@@ -845,11 +885,12 @@ const PlayerBar: React.FC<{
             audioCtxRef.current.resume();
           }
           
-          // Restore Web Audio DSP gain node to full volume (fixes crossfade attenuation bug)
+          // Restore Web Audio DSP gain node to current volume level
           if (gainNodeRef.current && audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
             try {
+              const currentVol = isMuted ? 0 : Math.max(0, Math.min(1, volume));
               gainNodeRef.current.gain.cancelScheduledValues(audioCtxRef.current.currentTime);
-              gainNodeRef.current.gain.setValueAtTime(1.0, audioCtxRef.current.currentTime);
+              gainNodeRef.current.gain.setValueAtTime(currentVol, audioCtxRef.current.currentTime);
             } catch (_) {}
           }
 
@@ -888,13 +929,6 @@ const PlayerBar: React.FC<{
 
     
   }, [currentTrack?.id, isPlaying, streamUrl, isLoading, fetchStreamUrl]);
-
-  
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = isMuted ? 0 : volume;
-    }
-  }, [volume, isMuted]);
 
   
   useEffect(() => {
@@ -1235,6 +1269,13 @@ const PlayerBar: React.FC<{
       if (audioRef.current) {
         audioRef.current.currentTime = targetTime;
       }
+      if (gainNodeRef.current && audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+        try {
+          const currentVol = isMuted ? 0 : Math.max(0, Math.min(1, volume));
+          gainNodeRef.current.gain.cancelScheduledValues(audioCtxRef.current.currentTime);
+          gainNodeRef.current.gain.setValueAtTime(currentVol, audioCtxRef.current.currentTime);
+        } catch (_) {}
+      }
       setCurrentTime(targetTime);
       setProgress(inputVal);
 
@@ -1265,7 +1306,23 @@ const PlayerBar: React.FC<{
 
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseFloat(e.target.value) / 100;
+    const val = Math.max(0, Math.min(1, parseFloat(e.target.value) / 100));
+    
+    // 1. Direct hardware-level Web Audio GainNode DSP adjustment (immediate zero-latency & zero re-render stutter)
+    if (gainNodeRef.current && audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+      try {
+        const time = audioCtxRef.current.currentTime;
+        gainNodeRef.current.gain.cancelScheduledValues(time);
+        gainNodeRef.current.gain.setValueAtTime(gainNodeRef.current.gain.value, time);
+        gainNodeRef.current.gain.linearRampToValueAtTime(val, time + 0.015);
+      } catch (_) {}
+    }
+
+    // 2. Keep raw HTML audio element at unity gain so decoder doesn't reset buffers
+    if (audioRef.current && audioRef.current.volume !== 1.0) {
+      audioRef.current.volume = 1.0;
+    }
+
     setVolume(val);
     if (val > 0 && isMuted) setIsMuted(false);
   };
@@ -1384,6 +1441,21 @@ const PlayerBar: React.FC<{
           if (audioRef.current) {
             audioRef.current.playbackRate = playbackSpeed;
           }
+          if (gainNodeRef.current && audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+            try {
+              const currentVol = isMuted ? 0 : Math.max(0, Math.min(1, volume));
+              gainNodeRef.current.gain.cancelScheduledValues(audioCtxRef.current.currentTime);
+              gainNodeRef.current.gain.setValueAtTime(currentVol, audioCtxRef.current.currentTime);
+            } catch (_) {}
+          }
+          if (!isPlaying) {
+            setIsPlaying(true);
+          }
+        }}
+        onPause={() => {
+          if (isPlaying && !isCrossfadingRef.current) {
+            // Keep state in sync when browser or system pauses playback
+          }
         }}
         onTimeUpdate={handleTimeUpdate}
         onEnded={async () => {
@@ -1392,6 +1464,12 @@ const PlayerBar: React.FC<{
             .catch(() => {});
 
           if (isLoop === "one") return;
+
+          // Prevent double-skip if crossfade already advanced to the next track
+          if (isCrossfadingRef.current) {
+            console.log("[PlayerBar] ⏹ onEnded ignored (already transitioned via Crossfade)");
+            return;
+          }
 
           console.log(
             `[PlayerBar] ⏹ onEnded | queue=${queue.length} | track="${currentTrack?.name}" | token=${!!accessToken}`,

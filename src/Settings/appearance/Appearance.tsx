@@ -420,9 +420,17 @@ const Appearance: React.FC = () => {
                             className={`theme-card ${activeThemeId === 'default' ? 'active' : ''}`}
                             onClick={() => setActiveThemeId('default')}
                         >
-                            <div className="theme-card-preview" style={{ background: '#06080c', borderColor: '#0077f9' }}>
-                                <div className="theme-preview-sidebar" style={{ background: 'rgba(12, 15, 22, 0.62)' }} />
-                                <div className="theme-preview-dot" style={{ background: '#0077f9' }} />
+                            <div className="theme-card-preview" style={{ background: '#06080c' }}>
+                                <div className="theme-preview-sidebar" style={{ background: 'rgba(12, 15, 22, 0.7)' }} />
+                                <div className="theme-preview-body">
+                                    <div className="theme-preview-lines">
+                                        <div className="theme-preview-line" style={{ width: '70%' }} />
+                                        <div className="theme-preview-line" style={{ width: '45%' }} />
+                                    </div>
+                                    <div className="theme-preview-player">
+                                        <div className="theme-preview-dot" style={{ background: '#0077f9' }} />
+                                    </div>
+                                </div>
                             </div>
                             <div className="theme-card-details">
                                 <span className="theme-card-title">Default Luniq Glass</span>
@@ -434,6 +442,7 @@ const Appearance: React.FC = () => {
                         {allThemes.map(theme => {
                             const isSelected = activeThemeId === theme.id;
                             const isPreset = PRESET_THEMES.some(p => p.id === theme.id);
+                            const accentColor = theme.colors?.accent || '#0077f9';
 
                             return (
                                 <div 
@@ -444,15 +453,22 @@ const Appearance: React.FC = () => {
                                     <div 
                                         className="theme-card-preview" 
                                         style={{ 
-                                            background: theme.colors?.bgPrimary || '#06080c',
-                                            borderColor: theme.colors?.accent || 'var(--accent)'
+                                            background: theme.colors?.bgPrimary || '#06080c'
                                         }}
                                     >
                                         <div 
                                             className="theme-preview-sidebar" 
                                             style={{ background: theme.colors?.glassPanelBg || theme.colors?.bgSurface || 'rgba(255,255,255,0.05)' }} 
                                         />
-                                        <div className="theme-preview-dot" style={{ background: theme.colors?.accent || 'var(--accent)' }} />
+                                        <div className="theme-preview-body">
+                                            <div className="theme-preview-lines">
+                                                <div className="theme-preview-line" style={{ width: '70%' }} />
+                                                <div className="theme-preview-line" style={{ width: '45%' }} />
+                                            </div>
+                                            <div className="theme-preview-player">
+                                                <div className="theme-preview-dot" style={{ background: accentColor }} />
+                                            </div>
+                                        </div>
                                     </div>
                                     <div className="theme-card-details">
                                         <div className="theme-card-title-row">

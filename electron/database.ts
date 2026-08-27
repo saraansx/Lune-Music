@@ -94,6 +94,18 @@ export function getDatabase() {
                 totalTracks INTEGER,
                 savedAt INTEGER
             );
+
+            -- Accurate Listening Time Statistics
+            CREATE TABLE IF NOT EXISTS listening_stats (
+                date TEXT NOT NULL,
+                trackId TEXT NOT NULL,
+                trackName TEXT NOT NULL,
+                artist TEXT NOT NULL,
+                seconds INTEGER NOT NULL DEFAULT 0,
+                plays INTEGER NOT NULL DEFAULT 0,
+                lastListenedAt INTEGER,
+                PRIMARY KEY (date, trackId)
+            );
         `);
         return db;
     } catch (error) {

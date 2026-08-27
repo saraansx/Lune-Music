@@ -2,7 +2,11 @@ import { BrowserWindow, session, app } from "electron";
 import type { SpotifyCredentials } from "./types.js";
 import path from "node:path";
 
+import { SpotifyAuthCore } from "./spotify-auth-core.js";
+
 export class ElectronSpotifyAuth {
+  private authCore = new SpotifyAuthCore();
+
   async login(): Promise<SpotifyCredentials> {
     return new Promise((resolve, reject) => {
       let resolved = false;
@@ -13,11 +17,9 @@ export class ElectronSpotifyAuth {
       const partition = `temp-login-${Date.now()}`;
       const loginSession = session.fromPartition(partition);
 
-      // Clean Firefox User-Agent prevents Google "This browser or app may not be secure" block
       const firefoxUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0";
       loginSession.setUserAgent(firefoxUA);
 
-      // Sanitize headers to look completely like standard Firefox (strip Chromium client hints & Electron headers)
       loginSession.webRequest.onBeforeSendHeaders((details, callback) => {
         const requestHeaders = { ...details.requestHeaders };
         requestHeaders['User-Agent'] = firefoxUA;
@@ -113,7 +115,6 @@ export class ElectronSpotifyAuth {
         }
       };
 
-      // Injected script to hide automation flags and intercept tokens on open.spotify.com
       const pageHookScript = `
         try {
           Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
@@ -150,10 +151,8 @@ export class ElectronSpotifyAuth {
           
           const currentUrl = loginWindow.webContents.getURL();
           if (currentUrl.includes("open.spotify.com")) {
-            // Once on open.spotify.com, attach debugger if not already attached
             attachDebuggerOnSpotify();
 
-            // Check if token was already captured via fetch hook
             const tokenData = await loginWindow.webContents.executeJavaScript(`
               window.__spotify_access_token_data || null
             `);
@@ -167,7 +166,6 @@ export class ElectronSpotifyAuth {
       const handleNavigation = async (url: string) => {
         if (resolved) return;
 
-        // If on open.spotify.com, attach debugger to capture token
         if (url.includes("open.spotify.com")) {
           attachDebuggerOnSpotify();
         }
@@ -176,7 +174,6 @@ export class ElectronSpotifyAuth {
         const spDcCookie = cookies.find((c) => c.name === "sp_dc");
 
         if (spDcCookie) {
-          // If login completed and we're on accounts.spotify.com, redirect to open.spotify.com to load Web Player & token
           if (url.includes("accounts.spotify.com")) {
             loginWindow.loadURL("https://open.spotify.com/");
           }
@@ -194,7 +191,6 @@ export class ElectronSpotifyAuth {
         }
       });
 
-      // Start by loading Spotify login
       loginWindow.loadURL("https://accounts.spotify.com/en/login?continue=https%3A%2F%2Fopen.spotify.com%2F");
     });
   }
@@ -202,6 +198,20 @@ export class ElectronSpotifyAuth {
   async refresh(
     spDc: string,
   ): Promise<Pick<SpotifyCredentials, "accessToken" | "expiration">> {
+    // ── FAST PATH: Direct TOTP Token refresh via HTTP ──
+    try {
+      const refreshed = await this.authCore.getAccessToken(spDc);
+      if (refreshed?.accessToken && !refreshed.isAnonymous) {
+        return {
+          accessToken: refreshed.accessToken,
+          expiration: refreshed.accessTokenExpirationTimestampMs || Date.now() + 3600 * 1000,
+        };
+      }
+    } catch (err) {
+      console.warn("[SpotifyRefresh] Fast HTTP refresh failed, falling back to browser window:", err);
+    }
+
+    // ── FALLBACK PATH: Isolated Headless Window ──
     return new Promise((resolve, reject) => {
       const partition = `temp-refresh-${Date.now()}`;
       const refreshSession = session.fromPartition(partition);
@@ -293,12 +303,41 @@ export class ElectronSpotifyAuth {
   }
 
   async getAnonymousToken(): Promise<SpotifyCredentials> {
+    // ── FAST PATH: Direct TOTP Anonymous HTTP Token (takes ~200-400ms, zero browser overhead) ──
+    try {
+      const fastToken = await this.authCore.getAnonymousToken();
+      if (fastToken?.accessToken) {
+        return {
+          accessToken: fastToken.accessToken,
+          expiration: fastToken.accessTokenExpirationTimestampMs || Date.now() + 3600 * 1000,
+          cookies: [],
+        };
+      }
+    } catch (fastErr) {
+      console.warn("[GuestToken] Fast-path HTTP fetch failed, falling back to browser window:", fastErr);
+    }
+
+    // ── FALLBACK PATH: Isolated Headless Window with Debugger + DOM Fetch Hook ──
     return new Promise((resolve, reject) => {
+      let resolved = false;
       const partition = `temp-anon-${Date.now()}`;
       const anonSession = session.fromPartition(partition);
 
       const firefoxUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0";
       anonSession.setUserAgent(firefoxUA);
+
+      anonSession.webRequest.onBeforeSendHeaders((details, callback) => {
+        const requestHeaders = { ...details.requestHeaders };
+        requestHeaders['User-Agent'] = firefoxUA;
+        delete requestHeaders['X-Electron'];
+        delete requestHeaders['x-requested-with'];
+        delete requestHeaders['sec-ch-ua'];
+        delete requestHeaders['sec-ch-ua-mobile'];
+        delete requestHeaders['sec-ch-ua-platform'];
+        delete requestHeaders['sec-ch-ua-model'];
+        delete requestHeaders['Sec-Fetch-User'];
+        callback({ cancel: false, requestHeaders });
+      });
 
       const anonWindow = new BrowserWindow({
         show: false,
@@ -312,10 +351,9 @@ export class ElectronSpotifyAuth {
         },
       });
 
-      let finished = false;
+      anonWindow.webContents.setUserAgent(firefoxUA);
+
       const cleanup = () => {
-        if (finished) return;
-        finished = true;
         try {
           if (!anonWindow.isDestroyed()) {
             if (anonWindow.webContents.debugger.isAttached()) {
@@ -326,17 +364,81 @@ export class ElectronSpotifyAuth {
         } catch {}
       };
 
+      const finishWithCredentials = async (accessToken: string, expiration?: number) => {
+        if (resolved) return;
+        resolved = true;
+
+        try {
+          const cookies = await anonSession.cookies.get({ domain: "spotify.com" });
+          cleanup();
+          resolve({
+            accessToken,
+            expiration: expiration || Date.now() + 3600 * 1000,
+            cookies: cookies || [],
+          });
+        } catch (err) {
+          cleanup();
+          reject(err);
+        }
+      };
+
       const timeout = setTimeout(() => {
+        if (resolved) return;
         cleanup();
         reject(new Error("Guest token fetch timed out"));
       }, 15000);
+
+      // Injected script to intercept token requests in the DOM directly
+      const pageHookScript = `
+        try {
+          Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+          delete window.chrome;
+        } catch(e) {}
+
+        try {
+          if (!window.__guest_hooked) {
+            window.__guest_hooked = true;
+            const origFetch = window.fetch;
+            window.fetch = async function(...args) {
+              const res = await origFetch.apply(this, args);
+              try {
+                const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url ? args[0].url : '');
+                if (url.includes('/api/token') || url.includes('/get_access_token')) {
+                  const clone = res.clone();
+                  clone.json().then(data => {
+                    if (data && data.accessToken) {
+                      window.__guest_access_token_data = data;
+                    }
+                  }).catch(() => {});
+                }
+              } catch(e) {}
+              return res;
+            };
+          }
+        } catch(e) {}
+      `;
+
+      anonWindow.webContents.on("dom-ready", async () => {
+        if (resolved) return;
+        try {
+          await anonWindow.webContents.executeJavaScript(pageHookScript);
+          
+          const tokenData = await anonWindow.webContents.executeJavaScript(`
+            window.__guest_access_token_data || null
+          `);
+          if (tokenData?.accessToken) {
+            clearTimeout(timeout);
+            await finishWithCredentials(tokenData.accessToken, tokenData.accessTokenExpirationTimestampMs);
+          }
+        } catch {}
+      });
 
       try {
         anonWindow.webContents.debugger.attach("1.3");
         anonWindow.webContents.debugger.sendCommand("Network.enable");
 
         anonWindow.webContents.debugger.on("message", async (_event, method, params) => {
-          if (finished) return;
+          if (resolved) return;
 
           if (method === "Network.responseReceived") {
             const url = params?.response?.url || "";
@@ -348,14 +450,8 @@ export class ElectronSpotifyAuth {
                 if (res?.body) {
                   const data = JSON.parse(res.body);
                   if (data?.accessToken) {
-                    const cookies = await anonSession.cookies.get({ domain: "spotify.com" });
                     clearTimeout(timeout);
-                    cleanup();
-                    resolve({
-                      accessToken: data.accessToken,
-                      expiration: data.accessTokenExpirationTimestampMs || Date.now() + 3600 * 1000,
-                      cookies: cookies || [],
-                    });
+                    await finishWithCredentials(data.accessToken, data.accessTokenExpirationTimestampMs);
                   }
                 }
               } catch (e) {

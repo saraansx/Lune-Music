@@ -58,6 +58,9 @@ export interface IPCChannels {
     'save-custom-theme': (themeData: any) => Promise<{ success: boolean; error?: string }>;
     'delete-custom-theme': (themeId: string) => Promise<{ success: boolean; error?: string }>;
     'open-themes-folder': () => Promise<boolean>;
+
+    'record-listening-time': (data: { trackId: string; trackName: string; artist: string; seconds: number }) => Promise<boolean>;
+    'get-listening-stats': () => Promise<{ totalSeconds: number; todaySeconds: number; topArtists: Array<{ artist: string; seconds: number; tracksCount: number }>; dailyHistory: Array<{ date: string; seconds: number }> }>;
     'import-theme-dialog': () => Promise<{ success?: boolean; theme?: any; error?: string } | null>;
     'select-background-image': () => Promise<{ success: boolean; filePath?: string; dataUrl?: string; error?: string } | null>;
 

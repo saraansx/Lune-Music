@@ -338,13 +338,10 @@ const Playback: React.FC<PlaybackProps> = ({ accessToken }) => {
                     <>
                         <CustomDropdown 
                             label={t('playback.spatialMode') || 'Acoustic Soundstage'}
-                            subLabel={t('playback.spatialModeSub') || 'Choose binaural room model / DTS sound profile.'}
+                            subLabel={t('playback.spatialModeSub') || 'Choose binaural room model / acoustic sound profile.'}
                             options={[
-                                { value: 'dts3d', label: 'DTS:X 3D Headphone' },
-                                { value: 'surround71', label: '7.1 Cinema Surround Sound' },
                                 { value: 'audiophile', label: 'Audiophile Hi-Fi Reference' },
-                                { value: 'studio', label: 'Mastering Studio' },
-                                { value: 'club', label: 'Club Deep Bass' }
+                                { value: 'studio', label: 'Mastering Studio Monitor' }
                             ]}
                             value={spatialAudioMode}
                             onChange={(val) => setSpatialAudioMode(val as any)}

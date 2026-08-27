@@ -1,0 +1,215 @@
+.listening-time-view {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+    animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+    width: 100%;
+}
+
+.metric-card {
+    background: rgba(255, 255, 255, 0.025);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: background 0.15s ease;
+}
+
+.metric-card:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.metric-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.metric-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-dim, #8892a4);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.metric-icon-wrap {
+    color: var(--accent, #0077f9);
+    opacity: 0.8;
+}
+
+.metric-value {
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: var(--text-main, #ffffff);
+    letter-spacing: -0.5px;
+}
+
+.metric-sub {
+    font-size: 0.78rem;
+    color: var(--text-dim, #8892a4);
+}
+
+.stats-section-card {
+    background: rgba(255, 255, 255, 0.025);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.stats-card-header {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.stats-card-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-main, #ffffff);
+}
+
+.stats-card-subtitle {
+    font-size: 0.78rem;
+    color: var(--text-dim, #8892a4);
+}
+
+.stats-empty-state {
+    padding: 24px 0;
+    text-align: center;
+    color: var(--text-dim, #8892a4);
+    font-size: 0.85rem;
+}
+
+/* ── Activity Chart ── */
+.activity-chart {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    height: 140px;
+    gap: 10px;
+    padding-top: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding-bottom: 8px;
+}
+
+.chart-bar-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+.chart-bar-track {
+    width: 100%;
+    max-width: 32px;
+    flex: 1;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    overflow: hidden;
+}
+
+.chart-bar-fill {
+    width: 100%;
+    background: var(--accent, #0077f9);
+    border-radius: 6px;
+    transition: height 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    opacity: 0.85;
+}
+
+.chart-bar-column:hover .chart-bar-fill {
+    opacity: 1;
+    filter: brightness(1.1);
+}
+
+.chart-bar-time {
+    font-size: 0.72rem;
+    color: var(--text-dim, #8892a4);
+    font-weight: 500;
+}
+
+.chart-bar-label {
+    font-size: 0.75rem;
+    color: var(--text-dim, #8892a4);
+    font-weight: 500;
+}
+
+/* ── Top Artists List ── */
+.top-artists-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.top-artist-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.artist-rank {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-dim, #8892a4);
+    width: 16px;
+    text-align: center;
+}
+
+.artist-info-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.artist-meta-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.artist-name {
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: var(--text-main, #ffffff);
+}
+
+.artist-time-tag {
+    font-size: 0.78rem;
+    color: var(--text-dim, #8892a4);
+    font-weight: 500;
+}
+
+.artist-progress-track {
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.artist-progress-fill {
+    height: 100%;
+    background: var(--accent, #0077f9);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+    opacity: 0.9;
+}

@@ -119,10 +119,21 @@ export const convertTTMLToLRC = (ttmlText: string): {
                 for (let s = 0; s < spans.length; s++) {
                     const span = spans[s];
                     const sBegin = span.getAttribute("begin");
-                    const sText = span.textContent || "";
+                    const sEnd = span.getAttribute("end");
+                    let sText = span.textContent || "";
+                    // Ensure trailing whitespace separation between span words if not present
+                    if (s < spans.length - 1 && !sText.endsWith(" ") && !sText.endsWith("\n")) {
+                        sText += " ";
+                    }
                     if (sBegin) {
                         const sSecs = parseTimeToSeconds(sBegin);
-                        lineSyncedWithWords += `<${sSecs}>${sText}`;
+                        if (sEnd) {
+                            const endSecs = parseTimeToSeconds(sEnd);
+                            const dur = Math.max(0.05, endSecs - sSecs);
+                            lineSyncedWithWords += `<${sSecs}:${dur.toFixed(2)}>${sText}`;
+                        } else {
+                            lineSyncedWithWords += `<${sSecs}>${sText}`;
+                        }
                     } else {
                         lineSyncedWithWords += sText;
                     }
@@ -140,7 +151,7 @@ export const convertTTMLToLRC = (ttmlText: string): {
                     const secs = parseTimeToSeconds(begin);
                     const lrcTime = secondsToLrcTime(secs);
                     if (lineSyncedWithWords && lineSyncedWithWords.includes('<')) {
-                        syncedLines.push(lineSyncedWithWords);
+                        syncedLines.push(lineSyncedWithWords.trim());
                     } else {
                         syncedLines.push(`${lrcTime} ${text}`);
                     }
@@ -177,9 +188,12 @@ export const extractTTML = (responseText: string): string => {
 };
 
 /**
- * Parses LRC lyrics with support for word-by-word / syllable-by-syllable karaoke tags:
- * e.g. [00:12.34] <0.20>Hello <0.85>world <1.40>from <2.10>Luniq
- * or [00:12.34] <00:12.50>Hello <00:13.20>world
+ * Parses LRC lyrics with comprehensive support for word-by-word & syllable-level tags:
+ * Formats supported:
+ * 1. [00:12.34] <0.20>Hello <0.85>world
+ * 2. [00:12.34] <00:12.50>Hello <00:13.20>world
+ * 3. [00:12.34] <00:12.50:0.70>Hello <00:13.20:0.60>world (Explicit duration)
+ * 4. [00:12.34] (00:12.50,00:13.20)Hello (Karaoke tuple)
  */
 export const parseSyncedLyrics = (lrc: string): LyricLine[] => {
     if (!lrc) return [];
@@ -201,43 +215,76 @@ export const parseSyncedLyrics = (lrc: string): LyricLine[] => {
             const rawText = line.replace(timeRegex, '').trim();
             if (!rawText) return;
 
-            // Check for word-level sync tags: <0.25>Word or <00:12.50>Word
-            const wordTagRegex = /<([^>]+)>([^<]*)/g;
+            // Check for word-level sync tags: <0.25>Word, <00:12.50>Word, <00:12.50:0.75>Word or (00:12.50,00:13.25)Word
+            const wordTagRegex = /(?:<([^>]+)>|\(([^)]+)\))([^<()]*)/g;
             const words: LyricWord[] = [];
             let cleanLineText = '';
             let wordMatch: RegExpExecArray | null;
 
             while ((wordMatch = wordTagRegex.exec(rawText)) !== null) {
-                const timeTag = wordMatch[1].trim();
-                const wordContent = wordMatch[2];
-                let wordTime = parseTimeToSeconds(timeTag);
+                const angleTag = wordMatch[1];
+                const parenTag = wordMatch[2];
+                const wordContent = wordMatch[3];
+
+                let wordTime = 0;
+                let explicitEndTime: number | undefined = undefined;
+
+                if (angleTag) {
+                    const tagParts = angleTag.split(':');
+                    if (tagParts.length === 3 && tagParts[2].includes('.')) {
+                        // <00:12.50:0.75> or <00:12.50>
+                        const timeStr = `${tagParts[0]}:${tagParts[1]}`;
+                        wordTime = parseTimeToSeconds(timeStr);
+                        const dur = parseFloat(tagParts[2]);
+                        if (!isNaN(dur) && dur > 0) {
+                            explicitEndTime = wordTime + dur;
+                        }
+                    } else {
+                        wordTime = parseTimeToSeconds(angleTag);
+                    }
+                } else if (parenTag) {
+                    const parts = parenTag.split(',');
+                    wordTime = parseTimeToSeconds(parts[0]);
+                    if (parts.length > 1) {
+                        const endSec = parseTimeToSeconds(parts[1]);
+                        if (endSec > wordTime) {
+                            explicitEndTime = endSec;
+                        }
+                    }
+                }
                 
                 // If wordTime was relative to the start of the line or absolute
                 if (wordTime < lineTime && wordTime < 60) {
                     wordTime = lineTime + wordTime;
+                    if (explicitEndTime !== undefined && explicitEndTime < 60) {
+                        explicitEndTime = lineTime + explicitEndTime;
+                    }
                 }
                 
                 if (wordContent) {
                     words.push({
                         time: wordTime,
+                        endTime: explicitEndTime,
                         text: wordContent
                     });
                     cleanLineText += wordContent;
                 }
             }
 
-            // Assign end times for word duration calculation
+            // Assign continuous end times for word duration calculation if not explicitly provided
             if (words.length > 0) {
                 for (let w = 0; w < words.length; w++) {
-                    if (w < words.length - 1) {
-                        words[w].endTime = words[w + 1].time;
-                    } else {
-                        words[w].endTime = words[w].time + 1.2;
+                    if (!words[w].endTime) {
+                        if (w < words.length - 1) {
+                            words[w].endTime = words[w + 1].time;
+                        } else {
+                            words[w].endTime = words[w].time + 1.2;
+                        }
                     }
                 }
             }
 
-            const finalText = words.length > 0 ? cleanLineText.trim() : rawText.replace(/<[^>]+>/g, '').trim();
+            const finalText = words.length > 0 ? cleanLineText.trim() : rawText.replace(/(?:<[^>]+>|\([^)]+\))/g, '').trim();
             if (finalText) {
                 result.push({
                     time: lineTime,

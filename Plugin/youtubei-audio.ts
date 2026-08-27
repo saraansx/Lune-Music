@@ -16,18 +16,18 @@ const MAX_CACHE_SIZE = 200;
 const STREAM_URL_EXPIRY_SAFETY_MS = 60 * 1000;
 
 const STREAM_CLIENTS = [
-  "IOS",
-  "MWEB",
   "WEB_REMIX",
-  "ANDROID",
-  "YTMUSIC_ANDROID",
   "WEB",
   "DEFAULT",
-  "TV",
-  "TV_EMBEDDED",
-  "ANDROID_VR",
   "WEB_EMBEDDED",
   "WEB_CREATOR",
+  "TV",
+  "TV_EMBEDDED",
+  "IOS",
+  "ANDROID",
+  "YTMUSIC_ANDROID",
+  "MWEB",
+  "ANDROID_VR",
 ] as const;
 
 type StreamClient = (typeof STREAM_CLIENTS)[number];
@@ -94,8 +94,10 @@ function extractCodec(mimeType: string): string {
 
 function codecRank(codec: string): number {
   const c = (codec || "").toLowerCase();
-  if (c.includes("opus")) return 3;
-  if (c.includes("mp4a")) return 2;
+  // Opus @ 48kHz delivers superior dynamic range, phase clarity and stereo definition
+  if (c.includes("opus")) return 4;
+  if (c.includes("mp4a.40.2") || c.includes("mp4a.40.5") || c.includes("mp4a") || c.includes("aac")) return 3;
+  if (c.includes("vorbis")) return 2;
   return 1;
 }
 
@@ -130,7 +132,28 @@ function calculateScore(
     );
   }
 
-  return titleScore + artistScore * 3 + durationScore;
+  // Audio master preference: Boost pristine official audio / topic tracks and penalize music videos
+  let studioMasterBonus = 0;
+  const lowerTitle = cTitle.toLowerCase();
+  const lowerArtist = cArtist.toLowerCase();
+
+  if (lowerArtist.includes(" - topic") || lowerArtist.includes("official artist")) {
+    studioMasterBonus += 15;
+  }
+  if (lowerTitle.includes("official audio") || lowerTitle.includes("provided to youtube") || lowerTitle.includes("original mix") || lowerTitle.includes("remastered")) {
+    studioMasterBonus += 10;
+  }
+  // Penalize music video edits which often contain spoken intro/outro skits or compressed audio masters
+  if (lowerTitle.includes("music video") || lowerTitle.includes("official video") || lowerTitle.includes("mv") || lowerTitle.includes("short film") || lowerTitle.includes("clip officiel")) {
+    studioMasterBonus -= 8;
+  }
+  if (lowerTitle.includes("live") || lowerTitle.includes("concert") || lowerTitle.includes("acoustic session")) {
+    if (!expectedTitle.toLowerCase().includes("live") && !expectedTitle.toLowerCase().includes("acoustic")) {
+      studioMasterBonus -= 12;
+    }
+  }
+
+  return titleScore + artistScore * 3 + durationScore + studioMasterBonus;
 }
 
 export class YoutubeiAudio {
@@ -278,24 +301,32 @@ export class YoutubeiAudio {
         filtered = audioFormats;
       }
 
+      // Perceptual Audio Scoring Matrix:
+      // 1. Prioritizes 48kHz Opus (itag 251 @ ~160kbps VBR - studio audio grade) and 256k/128k AAC (itag 140/141)
+      // 2. Favors higher sample rates (48,000Hz > 44,100Hz) and audio channel count
+      // 3. Avoids penalizing Opus when high bitrate numbers (e.g. 320k) are requested
       filtered.sort((a: any, b: any) => {
-        const rankA = codecRank(extractCodec(a.mime_type));
-        const rankB = codecRank(extractCodec(b.mime_type));
-        if (rankA !== rankB) return rankB - rankA;
+        const codecScoreA = codecRank(extractCodec(a.mime_type)) * 10000;
+        const codecScoreB = codecRank(extractCodec(b.mime_type)) * 10000;
 
-        if (quality && quality !== "default") {
+        const sampleRateA = (a.audio_sample_rate || a.sample_rate || 44100) >= 48000 ? 5000 : 2000;
+        const sampleRateB = (b.audio_sample_rate || b.sample_rate || 44100) >= 48000 ? 5000 : 2000;
+
+        const bitrateA = a.average_bitrate || a.bitrate || 128000;
+        const bitrateB = b.average_bitrate || b.bitrate || 128000;
+
+        // If low data mode or a specific capped quality is requested
+        if (quality && quality !== "default" && parseInt(quality, 10) <= 128) {
           const targetBitrate = parseInt(quality, 10) * 1000;
-          const bitrateA = a.average_bitrate || a.bitrate || 128000;
-          const bitrateB = b.average_bitrate || b.bitrate || 128000;
-          return (
-            Math.abs(bitrateA - targetBitrate) -
-            Math.abs(bitrateB - targetBitrate)
-          ); 
+          const scoreA = -Math.abs(bitrateA - targetBitrate) + codecScoreA;
+          const scoreB = -Math.abs(bitrateB - targetBitrate) + codecScoreB;
+          return scoreB - scoreA;
         }
 
-        const bitrateA = a.average_bitrate || a.bitrate || 0;
-        const bitrateB = b.average_bitrate || b.bitrate || 0;
-        return bitrateB - bitrateA;
+        const totalScoreA = codecScoreA + sampleRateA + (bitrateA / 1000);
+        const totalScoreB = codecScoreB + sampleRateB + (bitrateB / 1000);
+
+        return totalScoreB - totalScoreA;
       });
 
       const format = filtered[0];
@@ -418,7 +449,7 @@ function getClientUserAgent(client: StreamClient): string {
     _isPriority = false,
     durationMs: number = 0,
   ): Promise<string> {
-    formatExt = "webm";
+    const preferredExt = formatExt || "any";
     const tName =
       typeof trackName === "string"
         ? trackName
@@ -427,7 +458,7 @@ function getClientUserAgent(client: StreamClient): string {
       typeof artistName === "string"
         ? artistName
         : artistName?.name || String(artistName || "unknown");
-    const cacheKey = this.getCacheKey(tName, aName, quality, formatExt);
+    const cacheKey = this.getCacheKey(tName, aName, quality, preferredExt);
 
     const cachedUrl = this.getCachedUrl(cacheKey);
     if (cachedUrl) {
@@ -509,7 +540,7 @@ function getClientUserAgent(client: StreamClient): string {
         yt,
         videoId,
         quality,
-        formatExt,
+        preferredExt,
         signal,
       );
 
@@ -535,7 +566,7 @@ function getClientUserAgent(client: StreamClient): string {
     onProgress?: (progress: number) => void,
     signal?: AbortSignal,
   ): Promise<string> {
-    formatExt = "webm";
+    const preferredExt = formatExt || "any";
     const tName =
       typeof trackName === "string"
         ? trackName
@@ -573,7 +604,7 @@ function getClientUserAgent(client: StreamClient): string {
         yt,
         videoId,
         quality,
-        formatExt,
+        preferredExt,
         signal,
       );
 

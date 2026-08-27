@@ -1,61 +1,135 @@
 .settings-account-card {
-    padding: 24px 0;
-    margin-bottom: 24px;
+    padding: 20px 0;
+    margin-bottom: 20px;
 }
 
 .settings-account-header {
-    margin-bottom: 24px;
+    margin-bottom: 14px;
 }
 
 .settings-account-title {
-    font-size: 1.2rem;
-    font-weight: 400;
-    color: var(--text-main);
-    margin: 0 0 6px 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-main, #f0f0f2);
+    margin: 0 0 4px 0;
     letter-spacing: -0.01em;
 }
 
 .settings-account-description {
-    font-size: 0.85rem;
-    color: var(--text-muted, var(--text-dim));
+    font-size: 0.8rem;
+    color: var(--text-dim, #8892a4);
     margin: 0;
-    opacity: 0.5;
+    opacity: 0.8;
 }
 
 .account-profile-section {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: rgba(var(--text-main-rgb), 0.02);
-    padding: 16px;
+    background: rgba(255, 255, 255, 0.025);
+    padding: 14px 18px;
     border-radius: 12px;
-    border: 1px solid var(--card-border);
-    margin-bottom: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    margin-bottom: 12px;
+    transition: border-color 0.15s ease;
+}
+
+.account-profile-section:hover {
+    border-color: rgba(255, 255, 255, 0.1);
 }
 
 .account-profile-info {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
 }
 
 .account-avatar {
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     object-fit: cover;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .account-avatar-placeholder {
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
-    background: var(--theme-secondary, #333);
-    color: var(--text-main);
-    font-size: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-dim, #8892a4);
     display: flex;
     align-items: center;
     justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.account-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.account-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-main, #f0f0f2);
+    margin: 0;
+}
+
+.account-status {
+    font-size: 0.75rem;
+    color: var(--text-dim, #8892a4);
+    margin: 0;
+    opacity: 0.75;
+}
+
+.account-logout-btn {
+    padding: 6px 14px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 7px;
+    color: var(--text-main, #f0f0f2);
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.account-logout-btn:hover {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+}
+
+.settings-disclaimer {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    color: var(--text-dim, #8892a4);
+}
+
+.disclaimer-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-dim, #8892a4);
+    opacity: 0.75;
+}
+
+.settings-disclaimer p {
+    font-size: 0.75rem;
+    line-height: 1.45;
+    margin: 0;
+    opacity: 0.65;
 }
 
 .account-avatar-placeholder.guest-avatar {

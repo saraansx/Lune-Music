@@ -45,41 +45,26 @@ const Updates: React.FC = () => {
             </div>
 
             <div className="language-content">
-                {}
+                {/* App Auto-Update Toggle */}
                 <div className="settings-row" onClick={() => handleToggle(!autoUpdate)} style={{ cursor: 'pointer' }}>
                     <div className="row-info">
                         <span className="row-label">{t('updates.autoUpdateLabel') || 'Auto-Update Luniq'}</span>
                         <span className="row-sub">{t('updates.autoUpdateSub') || 'Automatically download and install updates in the background.'}</span>
                     </div>
-                    <label className="about-switch" onClick={(e) => e.stopPropagation()}>
+                    <label className="luniq-switch" onClick={(e) => e.stopPropagation()}>
                         <input 
                             type="checkbox" 
                             checked={autoUpdate}
                             onChange={(e) => handleToggle(e.target.checked)}
                         />
-                        <span className="about-switch-slider"></span>
+                        <span className="luniq-switch-slider"></span>
                     </label>
                 </div>
 
-                <div 
-                    className={`settings-row ${autoUpdate ? 'disabled' : ''}`}
-                    onClick={() => {
-                        if (!autoUpdate) {
-                            window.ipcRenderer.invoke('check-app-update');
-                        }
-                    }} 
-                    style={{ 
-                        cursor: autoUpdate ? 'default' : 'pointer', 
-                        marginTop: '12px', 
-                        borderTop: '1px solid rgba(255,255,255,0.04)', 
-                        paddingTop: '12px',
-                        opacity: autoUpdate ? 0.4 : 1
-                    }}
-                >
+                {/* App Manual Check Action */}
+                <div className="settings-row">
                     <div className="row-info">
-                        <span className="row-label" style={{ color: autoUpdate ? 'var(--text-dim)' : 'var(--accent)', fontWeight: 500 }}>
-                            {t('updates.checkUpdate') || 'Check for Updates'}
-                        </span>
+                        <span className="row-label">{t('updates.checkUpdate') || 'Check for Updates'}</span>
                         <span className="row-sub">
                             {autoUpdate 
                                 ? (t('updates.managedByAuto') || 'Updates are managed automatically.')
@@ -87,47 +72,44 @@ const Updates: React.FC = () => {
                             }
                         </span>
                     </div>
+                    {autoUpdate ? (
+                        <span className="updates-status-badge">
+                            <span className="status-dot"></span>
+                            Automatic
+                        </span>
+                    ) : (
+                        <button 
+                            className="updates-action-btn"
+                            onClick={() => window.ipcRenderer.invoke('check-app-update')}
+                        >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                            </svg>
+                            <span>Check Now</span>
+                        </button>
+                    )}
                 </div>
 
-                {}
-                <div 
-                    className="settings-row" 
-                    onClick={() => handleYtdlpToggle(!autoUpdateYtdlp)} 
-                    style={{ cursor: 'pointer', marginTop: '24px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '24px' }}
-                >
+                {/* Driver / Engine Auto-Update Toggle */}
+                <div className="settings-row" onClick={() => handleYtdlpToggle(!autoUpdateYtdlp)} style={{ cursor: 'pointer' }}>
                     <div className="row-info">
                         <span className="row-label">{t('updates.ytdlpLabel') || 'Update Playback Drivers'}</span>
-                        <span className="row-sub">{t('updates.ytdlpSub') || 'Automatically keep the playback system optimized.'}</span>
+                        <span className="row-sub">{t('updates.ytdlpSub') || 'Automatically keep the playback system optimized for the best experience.'}</span>
                     </div>
-                    <label className="about-switch" onClick={(e) => e.stopPropagation()}>
+                    <label className="luniq-switch" onClick={(e) => e.stopPropagation()}>
                         <input 
                             type="checkbox" 
                             checked={autoUpdateYtdlp}
                             onChange={(e) => handleYtdlpToggle(e.target.checked)}
                         />
-                        <span className="about-switch-slider"></span>
+                        <span className="luniq-switch-slider"></span>
                     </label>
                 </div>
 
-                <div 
-                    className={`settings-row ${autoUpdateYtdlp ? 'disabled' : ''}`}
-                    onClick={() => {
-                        if (!autoUpdateYtdlp) {
-                            window.ipcRenderer.send('check-ytdlp-update');
-                        }
-                    }} 
-                    style={{ 
-                        cursor: autoUpdateYtdlp ? 'default' : 'pointer', 
-                        marginTop: '12px', 
-                        borderTop: '1px solid rgba(255,255,255,0.04)', 
-                        paddingTop: '12px',
-                        opacity: autoUpdateYtdlp ? 0.4 : 1
-                    }}
-                >
+                {/* Driver Manual Check Action */}
+                <div className="settings-row">
                     <div className="row-info">
-                        <span className="row-label" style={{ color: autoUpdateYtdlp ? 'var(--text-dim)' : 'var(--accent)', fontWeight: 500 }}>
-                            {t('updates.checkYtdlp') || 'Check for Driver Updates'}
-                        </span>
+                        <span className="row-label">{t('updates.checkYtdlp') || 'Check for Driver Updates'}</span>
                         <span className="row-sub">
                             {autoUpdateYtdlp 
                                 ? (t('updates.managedByAuto') || 'Updates are managed automatically.')
@@ -135,6 +117,23 @@ const Updates: React.FC = () => {
                             }
                         </span>
                     </div>
+                    {autoUpdateYtdlp ? (
+                        <span className="updates-status-badge">
+                            <span className="status-dot"></span>
+                            Automatic
+                        </span>
+                    ) : (
+                        <button 
+                            className="updates-action-btn"
+                            onClick={() => window.ipcRenderer.send('check-ytdlp-update')}
+                        >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="23 4 23 10 17 10"></polyline>
+                                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                            </svg>
+                            <span>Update Drivers</span>
+                        </button>
+                    )}
                 </div>
             </div>
         </div>

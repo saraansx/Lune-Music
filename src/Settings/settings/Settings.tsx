@@ -10,6 +10,7 @@ import Desktop from '../desktop/Desktop';
 import Developer from '../developer/Developer';
 import Updates from '../updates/Updates';
 import About from '../about/About';
+import ListeningTime from '../listening/ListeningTime';
 import { useLanguage } from '../../context/LanguageContext';
 
 interface SettingsProps {
@@ -18,7 +19,7 @@ interface SettingsProps {
     isClosing?: boolean;
 }
 
-type SettingsTab = 'all' | 'playback' | 'appearance' | 'language' | 'desktop' | 'system';
+type SettingsTab = 'all' | 'listening' | 'playback' | 'appearance' | 'language' | 'desktop' | 'system';
 
 const Settings: React.FC<SettingsProps> = ({ accessToken, cookies, isClosing = false }) => {
     const { t } = useLanguage();
@@ -34,6 +35,16 @@ const Settings: React.FC<SettingsProps> = ({ accessToken, cookies, isClosing = f
                     <rect x="14" y="3" width="7" height="7"></rect>
                     <rect x="14" y="14" width="7" height="7"></rect>
                     <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+            )
+        },
+        {
+            id: 'listening',
+            label: 'Listening Activity',
+            icon: (
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
                 </svg>
             )
         },
@@ -91,59 +102,88 @@ const Settings: React.FC<SettingsProps> = ({ accessToken, cookies, isClosing = f
         }
     ];
 
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
     return (
         <div className={`settings-container ${isClosing ? 'settings-closing' : 'settings-opening'}`}>
-            <div className="settings-content">
-                <div className="settings-header">
-                    <h1>{t('settings.settings')}</h1>
-                    <p className="settings-header-sub">Configure your Luniq experience, playback engine, audio DSP, and appearance.</p>
+            <div className={`settings-layout ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+                {/* Settings Sidebar */}
+                <aside className="settings-sidebar">
+                    <div className="settings-sidebar-header">
+                        {!sidebarCollapsed && (
+                            <div className="sidebar-brand-text">
+                                <h2>{t('settings.settings')}</h2>
+                            </div>
+                        )}
+                        <button 
+                            className="sidebar-toggle-btn"
+                            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                        >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="9" y1="3" x2="9" y2="21"></line>
+                            </svg>
+                        </button>
+                    </div>
 
-                    <div className="settings-nav-tabs">
+                    <nav className="settings-sidebar-nav">
                         {tabs.map(tab => (
                             <button
                                 key={tab.id}
-                                className={`settings-nav-tab ${activeTab === tab.id ? 'active' : ''}`}
+                                className={`settings-sidebar-item ${activeTab === tab.id ? 'active' : ''}`}
                                 onClick={() => setActiveTab(tab.id)}
+                                title={sidebarCollapsed ? tab.label : undefined}
                             >
                                 <span className="tab-icon">{tab.icon}</span>
-                                <span>{tab.label}</span>
+                                {!sidebarCollapsed && <span className="tab-label">{tab.label}</span>}
                             </button>
                         ))}
+                    </nav>
+                </aside>
+
+                {/* Settings Main View */}
+                <main className="settings-main-scroll">
+                    <div className="settings-main-content">
+                        {/* Dedicated Listening Activity View (Not shown in 'all' tab per user requirement) */}
+                        {activeTab === 'listening' && (
+                            <ListeningTime />
+                        )}
+
+                        {(activeTab === 'all' || activeTab === 'system') && (
+                            <Account accessToken={accessToken} cookies={cookies} />
+                        )}
+                        
+                        {(activeTab === 'all' || activeTab === 'language') && (
+                            <Language />
+                        )}
+                        
+                        {(activeTab === 'all' || activeTab === 'appearance') && (
+                            <Appearance />
+                        )}
+                        
+                        {(activeTab === 'all' || activeTab === 'playback') && (
+                            <Playback accessToken={accessToken} />
+                        )}
+                        
+                        {(activeTab === 'all' || activeTab === 'playback') && (
+                            <Downloads />
+                        )}
+                        
+                        {(activeTab === 'all' || activeTab === 'desktop') && (
+                            <Desktop />
+                        )}
+                        
+                        {(activeTab === 'all' || activeTab === 'system') && (
+                            <>
+                                <Cache />
+                                <Developer />
+                                <Updates />
+                                <About />
+                            </>
+                        )}
                     </div>
-                </div>
-                
-                {(activeTab === 'all' || activeTab === 'system') && (
-                    <Account accessToken={accessToken} cookies={cookies} />
-                )}
-                
-                {(activeTab === 'all' || activeTab === 'language') && (
-                    <Language />
-                )}
-                
-                {(activeTab === 'all' || activeTab === 'appearance') && (
-                    <Appearance />
-                )}
-                
-                {(activeTab === 'all' || activeTab === 'playback') && (
-                    <Playback accessToken={accessToken} />
-                )}
-                
-                {(activeTab === 'all' || activeTab === 'playback') && (
-                    <Downloads />
-                )}
-                
-                {(activeTab === 'all' || activeTab === 'desktop') && (
-                    <Desktop />
-                )}
-                
-                {(activeTab === 'all' || activeTab === 'system') && (
-                    <>
-                        <Cache />
-                        <Developer />
-                        <Updates />
-                        <About />
-                    </>
-                )}
+                </main>
             </div>
         </div>
     );

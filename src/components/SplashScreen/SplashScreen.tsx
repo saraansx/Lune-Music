@@ -7,7 +7,7 @@ interface SplashScreenProps {
     duration?: number;
 }
 
-const SplashScreen = ({ onFinished, duration = 1800 }: SplashScreenProps) => {
+const SplashScreen = ({ onFinished, duration = 1600 }: SplashScreenProps) => {
     const [fadeOut, setFadeOut] = useState(false);
 
     useEffect(() => {
@@ -17,7 +17,7 @@ const SplashScreen = ({ onFinished, duration = 1800 }: SplashScreenProps) => {
 
         const finishTimer = setTimeout(() => {
             onFinished();
-        }, duration + 550);
+        }, duration + 400);
 
         return () => {
             clearTimeout(timer);
@@ -27,24 +27,19 @@ const SplashScreen = ({ onFinished, duration = 1800 }: SplashScreenProps) => {
 
     return (
         <div className={`splash-screen ${fadeOut ? 'fade-out' : ''}`}>
-            <div className="splash-logo-container">
+            <div className="splash-content">
                 <div className="splash-logo-wrapper">
                     <img 
                         src={splashLogo} 
-                        alt="Luniq Logo" 
+                        alt="Luniq" 
                         className="splash-logo" 
                         draggable={false} 
                     />
                 </div>
-                <h1 className="splash-title">LUNIQ</h1>
-                <p className="splash-subtitle">EXPERIENCE SOUND</p>
-            </div>
-            <div className="splash-loader">
-                <div className="splash-loader-bar" />
-                <div className="splash-loader-bar" />
-                <div className="splash-loader-bar" />
-                <div className="splash-loader-bar" />
-                <div className="splash-loader-bar" />
+                <div className="splash-brand">
+                    <span className="splash-title">LUNIQ</span>
+                    <span className="splash-subtitle">MUSIC PLAYER</span>
+                </div>
             </div>
         </div>
     );

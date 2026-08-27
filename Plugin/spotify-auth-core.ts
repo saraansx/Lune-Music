@@ -37,68 +37,113 @@ function generateTOTP(secret: Buffer, timestampMs: number, stepSeconds = 30, dig
     return (binary % 10 ** digits).toString().padStart(digits, '0');
 }
 
+function base32Decode(base32Str: string): Buffer {
+    const charTable = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    let bits = '';
+    for (let i = 0; i < base32Str.length; i++) {
+        const val = charTable.indexOf(base32Str.charAt(i)!.toUpperCase());
+        if (val === -1) continue;
+        bits += val.toString(2).padStart(5, '0');
+    }
+    const bytes: number[] = [];
+    for (let i = 0; i + 8 <= bits.length; i += 8) {
+        bytes.push(parseInt(bits.substring(i, i + 8), 2));
+    }
+    return Buffer.from(bytes);
+}
+
 export interface SpotifySecrets {
     version: string;
-    ciphertext: number[];
+    secret: Buffer;
 }
 
 export class SpotifyAuthCore {
     /**
-     * Live-updating secrets source maintained by the community.
-     * Falls back to the secondary URL if the primary fails.
+     * Community-maintained endpoints for TOTP secrets with fallback URLs.
      */
     private secretsUrls = [
-        'https://raw.githubusercontent.com/Thereallo1026/spotify-secrets/main/secrets.json',
         'https://gist.githubusercontent.com/saraansx/a622d4c1a12c36afdcf701201e9482a3/raw/nuance.json',
+        'https://raw.githubusercontent.com/Thereallo1026/spotify-secrets/main/secrets.json',
     ];
 
+    // Built-in hardcoded fallback secret in case network sources are unavailable
+    private fallbackSecret: SpotifySecrets = {
+        version: '61',
+        secret: base32Decode('GM3TMMJTGYZTQNZVGM4DINJZHA4TGOBYGMZTCMRTGEYDSMJRHE4TEOBUG4YTCMRUGQ4DQOJUGQYTAMRRGA2TCMJSHE3TCMBY'),
+    };
+
     async getLatestSecrets(): Promise<SpotifySecrets> {
-        let lastError: any;
         for (const url of this.secretsUrls) {
             try {
-                const response = await axios.get(url, { timeout: 8000 });
+                const response = await axios.get(url, { timeout: 4000 });
                 const data = response.data;
 
-                // Format 1: { "61": [bytes...], "62": [bytes...] }  (new format from Thereallo1026)
-                if (typeof data === 'object' && !Array.isArray(data)) {
+                // Format 1: [{ "s": "BASE32...", "v": 61 }] (nuance.json format)
+                if (Array.isArray(data) && data.length > 0) {
+                    const sorted = [...data].sort((a, b) => Number(b.v) - Number(a.v));
+                    const latest = sorted[0];
+                    if (latest?.s && latest?.v) {
+                        return {
+                            version: latest.v.toString(),
+                            secret: base32Decode(latest.s),
+                        };
+                    }
+                }
+
+                // Format 2: { "61": [bytes...], "62": [bytes...] }
+                if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
                     const versions = Object.keys(data).sort((a, b) => parseInt(b) - parseInt(a));
                     if (versions.length > 0) {
                         const version = versions[0]!;
                         const ciphertext = data[version];
                         if (Array.isArray(ciphertext)) {
-                            return { version, ciphertext };
+                            return {
+                                version,
+                                secret: deriveSecret(ciphertext),
+                            };
                         }
                     }
                 }
-
-                // Format 2: [{ "s": "BASE32...", "v": 61 }]  (old nuance.json format)
-                // Fall through to next URL since this format is now unsupported
-                console.warn('[SpotifyAuth] Secrets URL returned old format, trying next...');
-                lastError = new Error('Unsupported secrets format at ' + url);
             } catch (err) {
-                console.warn('[SpotifyAuth] Failed to fetch from', url, err);
-                lastError = err;
+                console.warn('[SpotifyAuthCore] Failed to fetch secrets from', url, err);
             }
         }
-        throw lastError ?? new Error('Could not fetch Spotify secrets from any source');
+
+        console.warn('[SpotifyAuthCore] Using built-in fallback TOTP secrets');
+        return this.fallbackSecret;
     }
 
     async getServerTime(): Promise<number> {
-        const response = await axios.get('https://open.spotify.com/api/server-time', { timeout: 8000 });
-        return response.data.serverTime;
+        try {
+            const response = await axios.get('https://open.spotify.com/api/server-time', { timeout: 4000 });
+            if (response.data?.serverTime) {
+                return response.data.serverTime;
+            }
+        } catch {}
+        return Math.floor(Date.now() / 1000);
+    }
+
+    async getAnonymousToken(): Promise<SpotifyTokenResponse> {
+        return this.fetchToken();
     }
 
     async getAccessToken(spDc: string): Promise<SpotifyTokenResponse> {
+        const tokenData = await this.fetchToken(spDc);
+        if (tokenData.isAnonymous) {
+            throw new Error('Spotify returned an anonymous token — sp_dc cookie may be invalid or expired');
+        }
+        return tokenData;
+    }
+
+    private async fetchToken(spDc?: string): Promise<SpotifyTokenResponse> {
         const secrets = await this.getLatestSecrets();
         const serverTime = await this.getServerTime();
 
-        const secret = deriveSecret(secrets.ciphertext);
         const nowMs = Date.now();
         const serverMs = serverTime * 1000;
 
-        // Spotify needs both a client-time TOTP and a server-time TOTP
-        const totpClient = generateTOTP(secret, nowMs);
-        const totpServer = generateTOTP(secret, serverMs);
+        const totpClient = generateTOTP(secrets.secret, nowMs);
+        const totpServer = generateTOTP(secrets.secret, serverMs);
 
         const url = new URL('https://open.spotify.com/api/token');
         url.searchParams.set('reason', 'transport');
@@ -109,30 +154,31 @@ export class SpotifyAuthCore {
         url.searchParams.set('sTime', serverTime.toString());
         url.searchParams.set('cTime', Math.floor(nowMs / 1000).toString());
 
+        const headers: Record<string, string> = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+            'Accept': 'application/json',
+            'Origin': 'https://open.spotify.com',
+            'Referer': 'https://open.spotify.com/',
+        };
+
+        if (spDc) {
+            headers['Cookie'] = `sp_dc=${spDc}`;
+        }
+
         const response = await axios.get(url.toString(), {
-            headers: {
-                'Cookie': `sp_dc=${spDc}`,
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
-                'Accept': 'application/json',
-                'Origin': 'https://open.spotify.com',
-                'Referer': 'https://open.spotify.com/',
-            },
-            timeout: 10000,
+            headers,
+            timeout: 5000,
         });
 
         if (!response.data || !response.data.accessToken) {
             throw new Error('Failed to retrieve access token from Spotify');
         }
 
-        if (response.data.isAnonymous) {
-            throw new Error('Spotify returned an anonymous token — sp_dc cookie may be invalid or expired');
-        }
-
         return {
             accessToken: response.data.accessToken,
-            accessTokenExpirationTimestampMs: response.data.accessTokenExpirationTimestampMs,
-            isAnonymous: response.data.isAnonymous,
-            clientId: response.data.clientId,
+            accessTokenExpirationTimestampMs: response.data.accessTokenExpirationTimestampMs || (Date.now() + 3600 * 1000),
+            isAnonymous: !!response.data.isAnonymous,
+            clientId: response.data.clientId || '',
         };
     }
 }

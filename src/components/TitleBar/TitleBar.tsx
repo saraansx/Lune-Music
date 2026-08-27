@@ -21,13 +21,19 @@ const TitleBar = () => {
             {!isMac && (
                 <div className="window-controls">
                     <button className="control-btn" onClick={handleMinimize} title="Minimize">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M5 12h14" /></svg>
+                        <svg viewBox="0 0 10 1" fill="currentColor">
+                            <rect width="10" height="1" />
+                        </svg>
                     </button>
                     <button className="control-btn" onClick={handleMaximize} title="Maximize">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="5" y="5" width="14" height="14" rx="2" /></svg>
+                        <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1">
+                            <rect x="0.5" y="0.5" width="9" height="9" />
+                        </svg>
                     </button>
                     <button className="control-btn close" onClick={handleClose} title="Close">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                        <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round">
+                            <path d="M1 1L9 9M9 1L1 9" />
+                        </svg>
                     </button>
                 </div>
             )}
